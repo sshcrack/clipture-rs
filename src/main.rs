@@ -76,7 +76,7 @@ fn bindings_test() {
         obs_post_load_modules();
 
 
-        let vid_src_id = ObsString::new("pipewire-screen-capture-source");
+        let vid_src_id = ObsString::new("monitor_capture");
         let vid_name = ObsString::new("Screen Capture Source");
 
         let vid_settings = obs_data_create();
@@ -89,7 +89,6 @@ fn bindings_test() {
         obs_data_release(vid_settings);
 
 
-        
         obs_set_output_source(0, vid_src);
 
         let vid_enc_settings = obs_data_create();
