@@ -16,3 +16,7 @@ cmake -S . -B build --preset ubuntu \
         -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
 
 cmake --build build
+cd build/rundir/RelWithDebInfo/lib/x86_64-linux-gnu
+ln -s libobs.so.0 libobs.so
+ln -s libobs-opengl.so.30 libobs-opengl.so
+ln -s libobs-frontend-api.so.0 libobs-frontend-api.so
