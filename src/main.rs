@@ -12,7 +12,7 @@ fn wrapper_test() {
     // Start the OBS context
     let startup_info = StartupInfo::default().set_video_info(
         ObsVideoInfoBuilder::new()
-            .graphics_module(ObsGraphicsModule::OpenGL)
+            .graphics_module(ObsGraphicsModule::DirectX11)
             .colorspace(ObsColorspace::Default)
             .scale_type(ObsScaleType::Bilinear)
             .build(),
@@ -21,10 +21,13 @@ fn wrapper_test() {
 
 
 
+    let mut vid_src_settings = ObsData::new();
+    vid_src_settings.set_string("monitor_id", "\\\\?\\DISPLAY#Default_Monitor#1&1f0c3c2f&0&UID256#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}");
+
     let video_source_info = SourceInfo::new(
         "monitor_capture",
         "Screen Capture Source",
-        None,
+        Some(vid_src_settings),
         None,
     );
 
@@ -67,9 +70,15 @@ fn wrapper_test() {
     let audio_handler = ObsContext::get_audio_ptr().unwrap();
     output.audio_encoder(audio_info, 0, audio_handler).unwrap();
 
+    let mut audio_settings = ObsData::new();
+    audio_settings.set_string("device_id", "default");
+    let audio_info = SourceInfo::new("wasapi_output_capture", "Audio Capture Source", Some(audio_settings), None);
 
     // Register the source and record
     output.source(video_source_info, 0).unwrap();
+    output.source(audio_info, 1).unwrap();
+    
+
     output.start().unwrap();
 
     println!("recording for 10 seconds...");

@@ -280,7 +280,7 @@ dependencies = [
 [[package]]
 name = "libobs"
 version = "0.1.2"
-source = "git+https://github.com/sshcrack/libobs-rs#411ef3e9aa2a41b7d99ca6586c35b6ce10322666"
+source = "git+https://github.com/sshcrack/libobs-rs#069f0f61b75b8b3d2a9a4fc9f0b03d666a6a73d2"
 dependencies = [
  "bindgen",
  "display-info",
