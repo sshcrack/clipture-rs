@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "*.scss": "scss",
+        "*.rh": "cpp",
+        "chrono": "cpp",
+        "xstring": "cpp"
+    }
+}
