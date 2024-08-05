@@ -189,7 +189,7 @@ pub fn attach_crash_handler() -> Result<CrashHandler> {
     let handler = CrashHandler::attach(unsafe {
         crash_handler::make_crash_event(move |crash_context| {
             let handled = client.request_dump(crash_context).is_ok();
-            eprintln!("Firezone crashed and wrote a crash dump.");
+            eprintln!("Clipture has crashed, but a crash dump was written.");
             crash_handler::CrashEventResult::Handled(handled)
         })
     })
