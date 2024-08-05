@@ -1,8 +1,9 @@
-use libobs_wrapper::{context::ObsContext, data::ObsData, utils::{AudioEncoderInfo, OutputInfo, StartupInfo, VideoEncoderInfo}};
+use libobs_wrapper::{context::ObsContext, data::ObsData, logger::{FileLogger, ObsStartupLog}, utils::{AudioEncoderInfo, OutputInfo, StartupInfo, VideoEncoderInfo}};
 
 pub fn initialize_obs(rec_file: &str) {
     // Start the OBS context
-    let startup_info = StartupInfo::default();
+    let startup_info = StartupInfo::default()
+        .set_log_callback(FileLogger::from_dir());
     let mut context = ObsContext::new(startup_info).unwrap();
 
     // Set up output to ./recording.mp4
