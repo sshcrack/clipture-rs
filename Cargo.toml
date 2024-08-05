@@ -1,9 +1,0 @@
-[package]
-name = "obs-test"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-anyhow = "1.0.86"
-lazy_static = "1.5.0"
-libobs = { git = "https://github.com/sshcrack/libobs-rs", version = "0.1.2" }

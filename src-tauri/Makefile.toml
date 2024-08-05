@@ -1,0 +1,39 @@
+[tasks.prepare-obs]
+command = "cargo"
+args = [
+    "obs-build",
+    "--profile",
+    "${PROFILE_PATH}",
+]
+
+[tasks.prepare-obs-test]
+command = "cargo"
+args = [
+    "obs-build",
+    "--profile",
+    "${PROFILE_PATH}/deps",
+]
+
+[tasks.build]
+command = "cargo"
+args = ["tauri", "build"]
+dependencies = ["prepare-obs"]
+
+[tasks.dev]
+condition = { profiles = [ "development" ] }
+command = "cargo"
+args = ["tauri", "dev", "${@}"]
+dependencies = ["prepare-obs"]
+
+[tasks.release]
+condition = { profiles = [ "release" ] }
+command = "cargo"
+args = ["build", "--release", "${@}"]
+dependencies = ["prepare-obs"]
+
+# profile based environment override
+[env.development]
+PROFILE_PATH = "debug"
+
+[env.production]
+PROFILE_PATH = "release"

@@ -1,7 +1,3 @@
-/target
-rtmp-services
-text-freetype2
-win-capture
-recording.mp4
-out.log
-obs-websocket
+obs-build
+dist
+node_modules
