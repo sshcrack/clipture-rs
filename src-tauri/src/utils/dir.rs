@@ -7,10 +7,12 @@ pub fn get_project_dirs() -> anyhow::Result<ProjectDirs> {
         .ok_or_else(|| anyhow::anyhow!("Failed to get project directories"))
 }
 
+#[allow(dead_code)]
 pub fn get_log_dir() -> anyhow::Result<PathBuf> {
     let project_dirs = get_project_dirs()?;
 
-    let logs = project_dirs.project_path().join("logs");
+    let logs = project_dirs.data_dir().parent().unwrap().join("logs");
+    println!("logs {:?}", logs);
     create_dir_all(&logs)?;
 
     Ok(logs)

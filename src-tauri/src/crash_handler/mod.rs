@@ -195,5 +195,6 @@ pub fn attach_crash_handler() -> Result<CrashHandler> {
     })
     .context("failed to attach signal handler")?;
 
+    println!("Crash handler attached");
     Ok(handler)
 }

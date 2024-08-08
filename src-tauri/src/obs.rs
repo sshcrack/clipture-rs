@@ -1,7 +1,7 @@
-use libobs_wrapper::{context::ObsContext, data::{video::{ObsVideoInfo, ObsVideoInfoBuilder}, ObsData}, enums::ObsGraphicsModule, utils::{AudioEncoderInfo, OutputInfo, StartupInfo, VideoEncoderInfo}};
+use libobs_wrapper::{context::ObsContext, data::ObsData, utils::{AudioEncoderInfo, OutputInfo, StartupInfo, VideoEncoderInfo}};
 
 #[cfg(not(debug_assertions))]
-use libobs_wrapper::logger::{FileLogger, ObsStartupLog};
+use libobs_wrapper::logger::FileLogger;
 
 #[cfg(not(debug_assertions))]
 use crate::utils::dir::get_log_dir;
@@ -16,7 +16,7 @@ pub fn initialize_obs(rec_file: &str) -> anyhow::Result<ObsContext> {
     ;//.set_video_info(ObsVideoInfoBuilder::new().graphics_module(ObsGraphicsModule::OpenGL).build());
 
     #[cfg(not(debug_assertions))]
-    let startup_info = startup_info.set_log_callback(Box::new(logger))?;
+    let startup_info = startup_info.set_logger(Box::new(logger));
     let mut context = ObsContext::new(startup_info)?;
 
     // Set up output to ./recording.mp4
@@ -30,7 +30,7 @@ pub fn initialize_obs(rec_file: &str) -> anyhow::Result<ObsContext> {
 
     // Register the video encoder
     let mut video_settings = ObsData::new();
-    video_settings
+    /*video_settings
         .set_int("bf", 2)
         .set_bool("psycho_aq", true)
         .set_bool("lookahead", true)
@@ -38,7 +38,7 @@ pub fn initialize_obs(rec_file: &str) -> anyhow::Result<ObsContext> {
         .set_string("preset", "hq")
         .set_string("rate_control", "cbr")
         .set_int("bitrate", 10000);
-
+*/
     let video_info = VideoEncoderInfo::new(
         ObsContext::get_best_encoder(),
         "video_encoder",
@@ -51,7 +51,7 @@ pub fn initialize_obs(rec_file: &str) -> anyhow::Result<ObsContext> {
 
     // Register the audio encoder
     let mut audio_settings = ObsData::new();
-    audio_settings.set_int("bitrate", 160);
+    //audio_settings.set_int("bitrate", 160);
 
     let audio_info =
         AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
