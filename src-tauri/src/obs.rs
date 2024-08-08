@@ -1,10 +1,23 @@
-use libobs_wrapper::{context::ObsContext, data::ObsData, logger::{FileLogger, ObsStartupLog}, utils::{AudioEncoderInfo, OutputInfo, StartupInfo, VideoEncoderInfo}};
+use libobs_wrapper::{context::ObsContext, data::{video::{ObsVideoInfo, ObsVideoInfoBuilder}, ObsData}, enums::ObsGraphicsModule, utils::{AudioEncoderInfo, OutputInfo, StartupInfo, VideoEncoderInfo}};
 
-pub fn initialize_obs(rec_file: &str) {
+#[cfg(not(debug_assertions))]
+use libobs_wrapper::logger::{FileLogger, ObsStartupLog};
+
+#[cfg(not(debug_assertions))]
+use crate::utils::dir::get_log_dir;
+
+pub fn initialize_obs(rec_file: &str) -> anyhow::Result<ObsContext> {
+    println!("Initializing OBS");
+    #[cfg(not(debug_assertions))]
+    let logger = FileLogger::from_dir(&get_log_dir()?)?;
+
     // Start the OBS context
     let startup_info = StartupInfo::default()
-        .set_log_callback(FileLogger::from_dir());
-    let mut context = ObsContext::new(startup_info).unwrap();
+    ;//.set_video_info(ObsVideoInfoBuilder::new().graphics_module(ObsGraphicsModule::OpenGL).build());
+
+    #[cfg(not(debug_assertions))]
+    let startup_info = startup_info.set_log_callback(Box::new(logger))?;
+    let mut context = ObsContext::new(startup_info)?;
 
     // Set up output to ./recording.mp4
     let mut output_settings = ObsData::new();
@@ -13,7 +26,7 @@ pub fn initialize_obs(rec_file: &str) {
     let output_name = "output";
     let output_info = OutputInfo::new("ffmpeg_muxer", output_name, Some(output_settings), None);
 
-    let output = context.output(output_info).unwrap();
+    let output = context.output(output_info)?;
 
     // Register the video encoder
     let mut video_settings = ObsData::new();
@@ -33,8 +46,8 @@ pub fn initialize_obs(rec_file: &str) {
         None,
     );
 
-    let video_handler = ObsContext::get_video_ptr().unwrap();
-    output.video_encoder(video_info, video_handler).unwrap();
+    let video_handler = ObsContext::get_video_ptr()?;
+    output.video_encoder(video_info, video_handler)?;
 
     // Register the audio encoder
     let mut audio_settings = ObsData::new();
@@ -43,6 +56,8 @@ pub fn initialize_obs(rec_file: &str) {
     let audio_info =
         AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
 
-    let audio_handler = ObsContext::get_audio_ptr().unwrap();
-    output.audio_encoder(audio_info, 0, audio_handler).unwrap();
+    let audio_handler = ObsContext::get_audio_ptr()?;
+    output.audio_encoder(audio_info, 0, audio_handler)?;
+
+    Ok(context)
 }
