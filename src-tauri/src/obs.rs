@@ -1,4 +1,6 @@
-use libobs_wrapper::{context::ObsContext, data::ObsData, utils::{AudioEncoderInfo, OutputInfo, StartupInfo, VideoEncoderInfo}};
+use libobs_wrapper::{
+    context::ObsContext, data::ObsData, encoders::ObsContextEncoders, utils::{AudioEncoderInfo, OutputInfo, StartupInfo, VideoEncoderInfo}
+};
 
 #[cfg(not(debug_assertions))]
 use libobs_wrapper::logger::FileLogger;
@@ -12,8 +14,7 @@ pub fn initialize_obs(rec_file: &str) -> anyhow::Result<ObsContext> {
     let logger = FileLogger::from_dir(&get_log_dir()?)?;
 
     // Start the OBS context
-    let startup_info = StartupInfo::default()
-    ;//.set_video_info(ObsVideoInfoBuilder::new().graphics_module(ObsGraphicsModule::OpenGL).build());
+    let startup_info = StartupInfo::default();
 
     #[cfg(not(debug_assertions))]
     let startup_info = startup_info.set_logger(Box::new(logger));
@@ -31,16 +32,16 @@ pub fn initialize_obs(rec_file: &str) -> anyhow::Result<ObsContext> {
     // Register the video encoder
     let mut video_settings = ObsData::new();
     /*video_settings
-        .set_int("bf", 2)
-        .set_bool("psycho_aq", true)
-        .set_bool("lookahead", true)
-        .set_string("profile", "high")
-        .set_string("preset", "hq")
-        .set_string("rate_control", "cbr")
-        .set_int("bitrate", 10000);
-*/
+            .set_int("bf", 2)
+            .set_bool("psycho_aq", true)
+            .set_bool("lookahead", true)
+            .set_string("profile", "high")
+            .set_string("preset", "hq")
+            .set_string("rate_control", "cbr")
+            .set_int("bitrate", 10000);
+    */
     let video_info = VideoEncoderInfo::new(
-        ObsContext::get_best_encoder(),
+        ObsContext::get_best_video_encoder(),
         "video_encoder",
         Some(video_settings),
         None,
@@ -50,8 +51,7 @@ pub fn initialize_obs(rec_file: &str) -> anyhow::Result<ObsContext> {
     output.video_encoder(video_info, video_handler)?;
 
     // Register the audio encoder
-    let mut audio_settings = ObsData::new();
-    //audio_settings.set_int("bitrate", 160);
+    let audio_settings = ObsData::new();
 
     let audio_info =
         AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
