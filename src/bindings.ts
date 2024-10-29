@@ -2,7 +2,7 @@
 
 export type Procedures = {
     queries: 
-        { key: "version", input: never, result: string },
+        { key: "display_toggle", input: never, result: null },
     mutations: never,
     subscriptions: never
 };

@@ -10,16 +10,20 @@ use anyhow::Context;
 use lazy_static::lazy_static;
 use libobs_sources::windows::MonitorCaptureSourceBuilder;
 use libobs_wrapper::{
-    context::ObsContext, data::ObsObjectBuilder, display::{ObsDisplayCreationData, WindowPositionTrait},
+    context::ObsContext,
+    data::ObsObjectBuilder,
+    display::{ObsDisplayCreationData, ShowHideTrait, WindowPositionTrait},
     sources::ObsSourceBuilder,
 };
 use obs::initialize_obs;
-use tauri::{Manager, Position};
+use tauri::{async_runtime::block_on, Manager, Position};
 use tauri_plugin_log as t_log;
+use tokio::sync::oneshot;
+use utils::consts::{app_handle, __APP_HANDLE};
 
-mod rpc;
 mod crash_handler;
 mod obs;
+mod rpc;
 mod utils;
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
@@ -29,7 +33,26 @@ fn greet(name: &str) -> String {
 }
 
 lazy_static! {
-    static ref OBS_CTX: Arc<Mutex<Option<ObsContext>>> = Arc::new(Mutex::new(None));
+    /// DO NOT EVER RUN THIS FUNCTION ON ANY OTHER THREAD THAN THE MAIN THREAD
+    /// It will cause issues, trust me
+    static ref __OBS_CTX: Arc<Mutex<Option<ObsContext>>> = Arc::new(Mutex::new(None));
+}
+
+pub async fn run_obs<F>(f: F) -> anyhow::Result<()>
+where
+    F: FnOnce(&mut ObsContext) -> anyhow::Result<()> + Send + 'static,
+{
+    let (tx, rx) = oneshot::channel();
+    app_handle().await.run_on_main_thread(move || {
+        let mut ctx = __OBS_CTX.lock().unwrap();
+        let ctx = ctx.as_mut().unwrap();
+        let r = f(ctx);
+
+        // Receiver will always
+        let _ = tx.send(r);
+    })?;
+
+    rx.await?
 }
 
 fn main() -> anyhow::Result<()> {
@@ -38,15 +61,13 @@ fn main() -> anyhow::Result<()> {
     set_current_dir(curr_dir)?;
     let _ = crash_handler::attach_crash_handler();
 
-
     let router = rpc::router();
-
 
     // Initialize OBS
     let ctx = initialize_obs("./recording.mp4")?;
-    OBS_CTX.lock().unwrap().replace(ctx);
+    __OBS_CTX.lock().unwrap().replace(ctx);
 
-    let tmp = OBS_CTX.clone();
+    let tmp = __OBS_CTX.clone();
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(rspc_tauri2::plugin(router, |_| ()))
@@ -58,6 +79,8 @@ fn main() -> anyhow::Result<()> {
                 .build(),
         )
         .setup(move |app| {
+            block_on(__APP_HANDLE.write()).replace(app.handle().clone());
+
             let mut opt = tmp.lock().unwrap();
             let ctx = opt.as_mut().unwrap();
             let scene = ctx.scene("main_scene");
@@ -82,10 +105,6 @@ fn main() -> anyhow::Result<()> {
             let m = m.unwrap();
             let m = m.get(1).unwrap();
 
-            let p = m.position();
-            main_window
-                .set_position(Position::Physical(p.to_owned()))
-                .unwrap();
             println!("Creating display {:?}", hwnd);
 
             let size = main_window.inner_size()?;
@@ -97,11 +116,13 @@ fn main() -> anyhow::Result<()> {
             let d = ctx.display(c).unwrap();
             d.create();
 
+            d.hide();
+
             Ok(())
         })
         .on_window_event(|_w, event| match event {
             tauri::WindowEvent::Resized(size) => {
-                let mut opt = OBS_CTX.lock().unwrap();
+                let mut opt = __OBS_CTX.lock().unwrap();
                 let ctx = opt.as_mut().unwrap();
                 let d = ctx.displays_mut().get_mut(0).unwrap();
 
@@ -109,7 +130,7 @@ fn main() -> anyhow::Result<()> {
                 let width = size.height as f32 / 2.0 * ratio;
 
                 d.set_size(width as u32, size.height / 2).unwrap();
-            },
+            }
             _ => {}
         })
         .invoke_handler(tauri::generate_handler![greet])

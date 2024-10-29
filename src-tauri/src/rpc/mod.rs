@@ -1,13 +1,36 @@
 use std::{path::PathBuf, sync::Arc};
 
-use rspc::{Config, Router};
+use libobs_wrapper::display::ShowHideTrait;
+use rspc::{Config, ErrorCode, Router};
+
+use crate::run_obs;
 
 pub fn router() -> Arc<Router<()>> {
     <Router>::new()
         .config(Config::new().export_ts_bindings(
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../src/bindings.ts"),
         ))
-        .query("version", |t| t(|ctx, input: ()| env!("CARGO_PKG_VERSION")))
+        .query("display_toggle", |t| {
+            t(|_ctx, _a: ()| async {
+                run_obs(|ctx| {
+                    let display = ctx.displays_mut().get_mut(0).unwrap();
+                    if display.is_visible() {
+                        display.hide();
+                    } else {
+                        display.show();
+                    }
+
+                    Ok(())
+                })
+                .await
+                .map_err(|err| {
+                    rspc::Error::new(
+                        ErrorCode::InternalServerError,
+                        format!("Couldn't toggle display - {}", err),
+                    )
+                })
+            })
+        })
         .build()
         .arced()
 }
