@@ -10,12 +10,14 @@ use anyhow::Context;
 use lazy_static::lazy_static;
 use libobs_sources::windows::MonitorCaptureSourceBuilder;
 use libobs_wrapper::{
-    context::ObsContext, data::ObsObjectBuilder, display::ObsDisplayCreationData,
+    context::ObsContext, data::ObsObjectBuilder, display::{ObsDisplayCreationData, WindowPositionTrait},
     sources::ObsSourceBuilder,
 };
 use obs::initialize_obs;
-use tauri::Manager;
+use tauri::{Manager, Position};
+use tauri_plugin_log as t_log;
 
+mod rpc;
 mod crash_handler;
 mod obs;
 mod utils;
@@ -36,6 +38,10 @@ fn main() -> anyhow::Result<()> {
     set_current_dir(curr_dir)?;
     let _ = crash_handler::attach_crash_handler();
 
+
+    let router = rpc::router();
+
+
     // Initialize OBS
     let ctx = initialize_obs("./recording.mp4")?;
     OBS_CTX.lock().unwrap().replace(ctx);
@@ -43,6 +49,14 @@ fn main() -> anyhow::Result<()> {
     let tmp = OBS_CTX.clone();
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(rspc_tauri2::plugin(router, |_| ()))
+        .plugin(
+            t_log::Builder::new()
+                .target(t_log::Target::new(t_log::TargetKind::LogDir {
+                    file_name: Some("logs".to_string()),
+                }))
+                .build(),
+        )
         .setup(move |app| {
             let mut opt = tmp.lock().unwrap();
             let ctx = opt.as_mut().unwrap();
@@ -64,17 +78,39 @@ fn main() -> anyhow::Result<()> {
                 .ok_or(anyhow::anyhow!("Couldn't get main window"))?;
             let hwnd = main_window.hwnd().unwrap();
 
-            println!("Creating display {:?}", hwnd);
-            let c = ObsDisplayCreationData::new(hwnd, 0, 0, 800, 600);
-            ctx.display(c).unwrap();
+            let m = app.available_monitors();
+            let m = m.unwrap();
+            let m = m.get(1).unwrap();
 
-            /*
-                        let out = &mut ctx.outputs_mut()[0];
-                        out.start().unwrap();
-                        std::thread::sleep(std::time::Duration::from_secs(3));
-                        out.stop().unwrap();
-            */
+            let p = m.position();
+            main_window
+                .set_position(Position::Physical(p.to_owned()))
+                .unwrap();
+            println!("Creating display {:?}", hwnd);
+
+            let size = main_window.inner_size()?;
+
+            let ratio = 16.0 / 9.0;
+            let width = size.height as f32 / 2.0 * ratio;
+
+            let c = ObsDisplayCreationData::new(hwnd, 0, 0, width as u32, size.height / 2);
+            let d = ctx.display(c).unwrap();
+            d.create();
+
             Ok(())
+        })
+        .on_window_event(|_w, event| match event {
+            tauri::WindowEvent::Resized(size) => {
+                let mut opt = OBS_CTX.lock().unwrap();
+                let ctx = opt.as_mut().unwrap();
+                let d = ctx.displays_mut().get_mut(0).unwrap();
+
+                let ratio = 16.0 / 9.0;
+                let width = size.height as f32 / 2.0 * ratio;
+
+                d.set_size(width as u32, size.height / 2).unwrap();
+            },
+            _ => {}
         })
         .invoke_handler(tauri::generate_handler![greet])
         .run(tauri::generate_context!())

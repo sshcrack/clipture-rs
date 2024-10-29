@@ -179,6 +179,7 @@ pub fn attach_crash_handler() -> Result<CrashHandler> {
     if let Some(socket_path) = server_path {
         let socket_path = PathBuf::from(socket_path);
 
+        // Server mainloop is here
         server(socket_path).expect("server failed");
         exit(0);
     }
@@ -195,6 +196,6 @@ pub fn attach_crash_handler() -> Result<CrashHandler> {
     })
     .context("failed to attach signal handler")?;
 
-    println!("Crash handler attached");
+    log::info!("Crash handler attached");
     Ok(handler)
 }

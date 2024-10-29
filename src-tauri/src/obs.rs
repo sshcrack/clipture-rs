@@ -53,8 +53,7 @@ pub fn initialize_obs(rec_file: &str) -> anyhow::Result<ObsContext> {
     // Register the audio encoder
     let audio_settings = ObsData::new();
 
-    let audio_info =
-        AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
+    let audio_info = AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
 
     let audio_handler = ObsContext::get_audio_ptr()?;
     output.audio_encoder(audio_info, 0, audio_handler)?;
