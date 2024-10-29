@@ -1,6 +1,13 @@
 # Tauri + React + Typescript
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+## Preparation
+```
+cargo install cargo-obs-build
+cd src-tauri
+
+cargo obs-build --profile ../resources
+cargo obs-build --profile debug
+```
 
 ## Recommended IDE Setup
 
