@@ -16,8 +16,8 @@ use utils::consts::{app_handle, __APP_HANDLE};
 
 mod crash_handler;
 mod obs;
-mod rpc;
 mod utils;
+mod routes;
 
 lazy_static! {
     /// DO NOT EVER RUN THIS FUNCTION ON ANY OTHER THREAD THAN THE MAIN THREAD
@@ -48,7 +48,7 @@ fn main() -> anyhow::Result<()> {
     set_current_dir(curr_dir)?;
     let _ = crash_handler::attach_crash_handler();
 
-    let router = rpc::router();
+    let router = routes::router();
 
     // Initialize OBS
     let ctx = obs::initialize_obs("./recording.mp4")?;

@@ -42,6 +42,7 @@ specta = { package = "specta", version = "=2.0.0-rc.20", features = [
     "serde",
     "interop"
 ] }
+sevenz-rust = "0.6.1"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
