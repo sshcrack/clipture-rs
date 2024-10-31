@@ -28,10 +28,20 @@ libobs-window-helper = "0.1.2"
 tauri-plugin-shell = "2"
 log = "0.4.22"
 tokio = { version = "1.41.0", features = ["full"] }
-rspc = { git = "https://github.com/spacedriveapp/rspc" }
-specta = { version = "^2.0.0-rc.20", features = ["derive"] }
-rspc_tauri2 = { git = "https://github.com/sshcrack/specta-tauri-v2" }
 async-stream = "0.3.6"
+
+rspc = { version = "0.2.0", features = [
+    "specta2",
+] } # <- The specta2 feature is what makes this all work
+rspc-tauri2 = { git = "https://github.com/sshcrack/tauri2-tauri-update" }
+tauri-specta = { version = "2.0.0-rc.20", features = [
+    "javascript",
+    "typescript",
+] }
+specta = { package = "specta", version = "=2.0.0-rc.20", features = [
+    "serde",
+    "interop"
+] }
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
@@ -41,9 +51,6 @@ custom-protocol = ["tauri/custom-protocol"]
 libobs-version = "30.2.2"
 libobs-cache-dir = "../obs-build"
 
-[patch.crates-io]
-specta = { git = "https://github.com/specta-rs/specta", rev = "8509af0162b26bb2c08e84a41cdfc4eaf67a6ab3" }
-
 [profile.dev]
 incremental = true # Compile your binary in smaller steps.
 
@@ -52,3 +59,10 @@ codegen-units = 1 # Allows LLVM to perform better optimization.
 lto = true        # Enables link-time-optimizations.
 opt-level = "s"   # Prioritizes small binary size. Use `3` if you prefer speed.
 strip = true      # Ensures debug symbols are removed.
+
+
+# I know these do nothing in a Cargo workspace but this should help if people copy this example.
+[patch.crates-io]
+# Interop support
+specta = { git = "https://github.com/oscartbeaumont/specta", tag="v2.0.0-rc.20" }
+rspc = { git = "https://github.com/sshcrack/rspc", branch = "specta-update" }

@@ -1,7 +1,7 @@
 
 use rspc::{Router, RouterBuilder};
-use specta::Type;
 use serde::{Deserialize, Serialize};
+use specta::Type;
 
 #[derive(Type, Serialize, Deserialize)]
 pub struct ObsBootstrapProgress {
