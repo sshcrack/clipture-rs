@@ -1,14 +1,16 @@
 use std::{path::PathBuf, sync::Arc};
 
+use bootstrap::bootstrap;
 use libobs_wrapper::display::ShowHideTrait;
 use rspc::{Config, ErrorCode, Router};
 
 use crate::run_obs;
 
+mod bootstrap;
 pub fn router() -> Arc<Router<()>> {
     <Router>::new()
         .config(Config::new().export_ts_bindings(
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../src/bindings.ts"),
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../src/misc/bindings.ts"),
         ))
         .query("display_toggle", |t| {
             t(|_ctx, _a: ()| async {
@@ -31,6 +33,7 @@ pub fn router() -> Arc<Router<()>> {
                 })
             })
         })
+        .merge("", bootstrap())
         .build()
         .arced()
 }

@@ -12,7 +12,7 @@
   "dependencies": {
     "@nextui-org/react": "^2.4.8",
 
-    "@rspc/client": "^0.2.0",
+    "@rspc/client": "^0.2.4",
     "@rspc/tauri": "^0.2.0",
     "@tauri-apps/api": "2.0.0",
     "@tauri-apps/plugin-shell": "~2.0.1",
@@ -35,7 +35,8 @@
   },
   "pnpm": {
     "patchedDependencies": {
-      "@rspc/tauri@0.2.0": "patches/@rspc__tauri@0.2.0.patch"
+      "@rspc/tauri@0.2.0": "patches/@rspc__tauri@0.2.0.patch",
+      "@rspc/client@0.2.4": "patches/@rspc__client@0.2.4.patch"
     }
   }
 }

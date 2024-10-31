@@ -30,9 +30,26 @@
     },
     "windows": [
       {
+        "title": "Bootstrap",
+        "label": "bootstrap",
+        "center": true,
+        "closable": false,
+        "resizable": false,
+        "width": 300,
+        "height": 150,
+        "maximizable": false,
+
+
+        "decorations": true,
+        "url": "src/bootstrap.html"
+      },
+      {
         "title": "Clipture",
+        "label": "main",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "visible": false,
+        "url": "src/main.html"
       }
     ]
   }
