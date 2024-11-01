@@ -12,7 +12,7 @@ use libobs_wrapper::context::ObsContext;
 use tauri::async_runtime::block_on;
 use tauri_plugin_log as t_log;
 use tokio::sync::oneshot;
-use utils::consts::{app_handle, __APP_HANDLE};
+use utils::consts::{app_handle, APP_HANDLE};
 
 mod crash_handler;
 mod obs;
@@ -52,8 +52,8 @@ fn main() -> anyhow::Result<()> {
     let router = routes::router();
 
     // Initialize OBS
-    let ctx = obs::initialize_obs("./recording.mp4")?;
-    __OBS_CTX.lock().unwrap().replace(ctx);
+    //let ctx = obs::initialize_obs("./recording.mp4")?;
+    //__OBS_CTX.lock().unwrap().replace(ctx);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -66,8 +66,8 @@ fn main() -> anyhow::Result<()> {
                 .build(),
         )
         .setup(move |app| {
-            block_on(__APP_HANDLE.write()).replace(app.handle().clone());
-            block_on(obs::prepare_example()).unwrap();
+            block_on(APP_HANDLE.write()).replace(app.handle().clone());
+            //block_on(obs::prepare_example()).unwrap();
             Ok(())
         })
         .run(tauri::generate_context!())

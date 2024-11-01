@@ -1,25 +1,27 @@
+use std::{env::temp_dir, path::PathBuf};
+
 use anyhow::Context;
 use async_stream::stream;
-use async_tempfile::TempFile;
 use futures_core::Stream;
 use futures_util::StreamExt;
 use semver::Version;
 use sha2::{Digest, Sha256};
-use tokio::io::AsyncWriteExt;
+use tokio::{fs::File, io::AsyncWriteExt};
+use uuid::Uuid;
 
-use crate::utils::consts::{OBS_VERSION, RELEASES_URL};
-
-use super::github;
+use crate::{json_to_rs::github, utils::consts::{OBS_VERSION, RELEASES_URL}};
 
 pub(super) enum DownloadStatus {
     Error(anyhow::Error),
     Progress(f32, String),
-    Done(TempFile),
+    Done(PathBuf),
 }
 
 pub(super) async fn download_obs() -> anyhow::Result<impl Stream<Item = DownloadStatus>> {
     // Fetch latest OBS release
-    let client = reqwest::Client::new();
+    let client = reqwest::ClientBuilder::new()
+        .user_agent("clipture-rs")
+        .build()?;
 
     let releases: github::releases::Root = client.get(RELEASES_URL).send().await?.json().await?;
 
@@ -59,7 +61,8 @@ pub(super) async fn download_obs() -> anyhow::Result<impl Stream<Item = Download
 
     let mut bytes_stream = res.bytes_stream();
 
-    let mut tmp_file = TempFile::new().await.context("Creating temporary file")?;
+    let path = PathBuf::new().join(temp_dir()).join(format!("{}.7z", Uuid::new_v4()));
+    let mut tmp_file = File::create_new(&path).await.context("Creating temporary file")?;
     let mut curr_len = 0;
 
     let mut hasher = Sha256::new();
@@ -113,6 +116,7 @@ pub(super) async fn download_obs() -> anyhow::Result<impl Stream<Item = Download
             return;
         }
 
-        yield DownloadStatus::Done(tmp_file);
+        log::info!("Hashes match");
+        yield DownloadStatus::Done(path);
     })
 }

@@ -7,8 +7,6 @@ import toast, { Toaster } from 'react-hot-toast';
 function App() {
   return <>
     <Button onClick={async () => {
-      const e = await client.query(["display_toggle"])
-      toast.success(`R2F: ${e}`)
     }}>Greet button</Button>
     <Toaster />
   </>;

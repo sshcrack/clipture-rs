@@ -9,6 +9,8 @@
   "permissions": [
     "core:default",
     "shell:allow-open",
-    "shell:default"
+    "shell:default",
+    "core:window:allow-show",
+    "core:window:allow-close"
   ]
 }

@@ -37,7 +37,7 @@
         "maximizable": false,
 
 
-        "decorations": true,
+        "decorations": false,
         "url": "src/bootstrap.html"
       },
       {
