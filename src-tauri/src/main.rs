@@ -18,6 +18,7 @@ mod crash_handler;
 mod obs;
 mod utils;
 mod routes;
+mod json_to_rs;
 
 lazy_static! {
     /// DO NOT EVER RUN THIS FUNCTION ON ANY OTHER THREAD THAN THE MAIN THREAD
