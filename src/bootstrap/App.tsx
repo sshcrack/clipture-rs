@@ -40,6 +40,6 @@ export default function BootstrapApp() {
     return <div className='flex flex-col gap-6 justify-center pl-5 pr-5 items-center h-full'>
         <p className='text-lg top-2'>Initializing...</p>
         <Toaster />
-        <Progress label={status} showValueLabel={true} value={progress} maxValue={1} />
+        <Progress label={status} classNames={{ label: "truncate" }} showValueLabel={true} value={progress} maxValue={1} />
     </div>
 }
