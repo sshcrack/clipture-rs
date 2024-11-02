@@ -1,23 +1,27 @@
 use std::{
-    env::current_exe,
+    process::{exit, Command},
     sync::{atomic::AtomicBool, Arc},
 };
 
-use anyhow::Context;
 use async_stream::stream;
 use download::{download_obs, DownloadStatus};
 use extract::extract_obs;
 use futures_core::Stream;
 use futures_util::{pin_mut, StreamExt};
 use lazy_static::lazy_static;
+use libobs_wrapper::context::ObsContext;
 use obs::bootstrap_obs;
 use rspc::{Router, RouterBuilder};
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use tokio::{fs::remove_file, sync::broadcast};
+use tauri::{process::current_binary, Manager};
+use tokio::{fs::{self, remove_file}, sync::broadcast};
 use window::open_main_window;
 
-use crate::utils::util::AtomicDropGuard;
+use crate::utils::{
+    consts::{APP_HANDLE, INVALID_OBS_SIZE, OBS_VERSION},
+    util::AtomicDropGuard,
+};
 
 mod download;
 mod extract;
@@ -31,26 +35,59 @@ pub enum BootstrapStatus {
     Done,
 }
 
-fn verify_installation() -> anyhow::Result<bool> {
-    let exe = current_exe().context("Getting current executable")?;
-    let parent = exe.parent().context("Getting parent of executable")?;
-    #[cfg(target_os = "windows")]
-    let obs_path = parent.join("obs.dll");
+async fn verify_installation() -> anyhow::Result<bool> {
+    let handle = APP_HANDLE.read().await;
+    let handle = handle.as_ref().expect("Should have app handle");
 
-    //TODO Stuff for macos / windows not tested
-    #[cfg(target_os = "macos")]
-    let obs_path = parent.join("obs.dylib");
+    let binary_path = current_binary(&handle.env())?;
+    let obs_path = binary_path.parent().unwrap().join("obs.dll");
+    if !obs_path.exists() {
+        return Ok(false);
+    }
 
-    #[cfg(target_os = "linux")]
-    let obs_path = parent.join("obs.so");
+    let metadata = fs::metadata(&obs_path).await?;
+    if metadata.len() < INVALID_OBS_SIZE as u64 {
+        return Ok(false);
+    }
 
-    Ok(obs_path.exists())
+    let local_version = ObsContext::get_version();
+    log::debug!("Verify version OBS: {:?}", local_version);
+    let local_version = local_version.parse::<semver::Version>();
+
+    if local_version.is_err() {
+        return Ok(false);
+    }
+
+    return Ok(OBS_VERSION.matches(&local_version.unwrap()));
+}
+
+async fn restart_with_extracted(extract_path: std::path::PathBuf) -> ! {
+    let handle = APP_HANDLE.read().await;
+    let handle = handle.as_ref().expect("Should have app handle");
+
+    handle.cleanup_before_exit();
+
+    let env = handle.env();
+    if let Ok(path) = current_binary(&env) {
+        let installation_updater = path.parent().unwrap().join("installation-updater.exe");
+        if let Err(e) = Command::new(installation_updater)
+            .arg(extract_path)
+            .arg(path)
+            .arg(std::process::id().to_string())
+            .args(env.args_os.iter().skip(1).collect::<Vec<_>>())
+            .spawn()
+        {
+            log::error!("failed to restart app: {e}");
+        }
+    }
+
+    exit(0);
 }
 
 pub fn bootstrap_inner() -> impl Stream<Item = BootstrapStatus> {
     stream! {
         let _guard = AtomicDropGuard::new(IN_PROGRESS.clone());
-        let valid_result = verify_installation();
+        let valid_result = verify_installation().await;
         if let Err(err) = valid_result {
             log::error!("Error verifying installation: {:?}", err);
             yield BootstrapStatus::Error(err.to_string());
@@ -101,6 +138,7 @@ pub fn bootstrap_inner() -> impl Stream<Item = BootstrapStatus> {
             let extract_stream = extract_stream.unwrap();
             pin_mut!(extract_stream);
 
+            let mut extract_path = None;
             while let Some(status) = extract_stream.next().await {
                 match status {
                     extract::ExtractStatus::Error(err) => {
@@ -110,9 +148,15 @@ pub fn bootstrap_inner() -> impl Stream<Item = BootstrapStatus> {
                     }
                     extract::ExtractStatus::Progress(prog, msg) => {
                         yield BootstrapStatus::Progress(prog / 3.0 + 1.0 / 3.0, msg)
+                    },
+                    extract::ExtractStatus::Done(path) => {
+                        extract_path = Some(path);
+                        break;
                     }
                 }
             }
+
+            restart_with_extracted(extract_path.expect("Should have a extract_path")).await;
         }
 
 

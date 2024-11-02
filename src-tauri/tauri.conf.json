@@ -14,7 +14,11 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": {
+      "./resources/obs.dll": "./obs.dll",
+      "./resources/installation-updater.exe": "./installation-updater.exe"
+    }
   },
   "productName": "Clipture",
   "mainBinaryName": "clipture",

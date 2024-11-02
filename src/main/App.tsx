@@ -1,7 +1,6 @@
 import { Button } from '@nextui-org/react';
+import { Toaster } from 'react-hot-toast';
 import "./App.css";
-import client from '../misc/client';
-import toast, { Toaster } from 'react-hot-toast';
 
 // Maybe use ParkUI?
 function App() {

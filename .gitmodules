@@ -1,0 +1,3 @@
+[submodule "dummy-dll-generator"]
+	path = dummy-dll-generator
+	url = https://github.com/sshcrack/dummy-dll-generator

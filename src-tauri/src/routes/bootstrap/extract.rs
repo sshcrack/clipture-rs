@@ -10,6 +10,7 @@ use sevenz_rust::{default_entry_extract_fn, Password, SevenZReader};
 pub(super) enum ExtractStatus {
     Error(anyhow::Error),
     Progress(f32, String),
+    Done(PathBuf)
 }
 
 pub async fn extract_obs(file: &Path) -> anyhow::Result<impl Stream<Item = ExtractStatus>> {
@@ -17,16 +18,22 @@ pub async fn extract_obs(file: &Path) -> anyhow::Result<impl Stream<Item = Extra
 
     let handle = tauri::async_runtime::handle();
     let path = PathBuf::from(file);
+
+
+    let destination = current_exe().expect("Should be able to get current exe");
+    let destination = destination.parent().expect("Should be able to get parent of exe");
+    let destination = PathBuf::from(destination).join("new-obs");
+
+    let dest = destination.clone();
     let stream = stream! {
         yield Ok((0.0, "Reading file...".to_string()));
         let mut sz = SevenZReader::open(&path, Password::empty())?;
         let (tx, mut rx) = tokio::sync::mpsc::channel(5);
 
-        let destination = current_exe().expect("Should be able to get current exe");
-        let destination = destination.parent().expect("Should be able to get parent of exe");
-        let destination = PathBuf::from(destination);
-
         let total = sz.archive().files.len() as f32;
+        if !dest.exists() {
+            std::fs::create_dir_all(&dest)?;
+        }
 
         let mut curr = 0;
         let mut r = handle.spawn_blocking(move || {
@@ -34,7 +41,7 @@ pub async fn extract_obs(file: &Path) -> anyhow::Result<impl Stream<Item = Extra
                 curr += 1;
                 tx.blocking_send((curr as f32 / total, format!("Extracting {}", entry.name()))).unwrap();
 
-                let dest_path = destination.join(entry.name());
+                let dest_path = dest.join(entry.name());
 
                 default_entry_extract_fn(entry, reader, &dest_path)
             })?;
@@ -77,5 +84,7 @@ pub async fn extract_obs(file: &Path) -> anyhow::Result<impl Stream<Item = Extra
                 }
             }
         }
+
+        yield ExtractStatus::Done(destination);
     })
 }

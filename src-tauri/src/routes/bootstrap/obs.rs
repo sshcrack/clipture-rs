@@ -50,6 +50,7 @@ pub async fn bootstrap_obs() -> impl Stream<Item = BootstrapStatus> {
             return;
         }
 
+
         yield BootstrapStatus::Done;
     }
 }
