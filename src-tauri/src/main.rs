@@ -3,60 +3,51 @@
 
 use std::{
     env::{current_exe, set_current_dir},
-    sync::{Arc, Mutex},
+    process,
 };
 
 use anyhow::Context;
-use lazy_static::lazy_static;
-use libobs_wrapper::context::ObsContext;
-use tauri::async_runtime::block_on;
+use auth::{AuthManager, AUTH_MANAGER};
+use tauri::{Manager, WindowEvent};
+use tauri_plugin_deep_link::DeepLinkExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_log as t_log;
-use tokio::sync::oneshot;
-use utils::consts::{app_handle, APP_HANDLE};
+use tauri_plugin_window_state::{AppHandleExt, StateFlags};
+use utils::consts::APP_HANDLE;
 
+mod auth;
 mod crash_handler;
-mod obs;
-mod utils;
-mod routes;
 mod json_to_rs;
-
-lazy_static! {
-    /// DO NOT EVER RUN THIS FUNCTION ON ANY OTHER THREAD THAN THE MAIN THREAD
-    /// It will cause issues, trust me
-    static ref __OBS_CTX: Arc<Mutex<Option<ObsContext>>> = Arc::new(Mutex::new(None));
-}
-
-pub async fn run_obs<F>(f: F) -> anyhow::Result<()>
-where
-    F: FnOnce(&mut ObsContext) -> anyhow::Result<()> + Send + 'static,
-{
-    let (tx, rx) = oneshot::channel();
-    app_handle().await.run_on_main_thread(move || {
-        let mut ctx = __OBS_CTX.lock().unwrap();
-        let ctx = ctx.as_mut().unwrap();
-        let r = f(ctx);
-
-        // Receiver will always
-        let _ = tx.send(r);
-    })?;
-
-    rx.await?
-}
+mod obs;
+mod routes;
+mod utils;
 
 fn main() -> anyhow::Result<()> {
     let curr_dir = current_exe().context("Couldn't get current exe")?;
     let curr_dir = curr_dir.parent().context("Unwrapping parent from exe")?;
     set_current_dir(curr_dir)?;
-    let _ = crash_handler::attach_crash_handler();
 
+    let _ = crash_handler::attach_crash_handler();
     let router = routes::router();
 
-    // Initialize OBS
-    //let ctx = obs::initialize_obs("./recording.mp4")?;
-    //__OBS_CTX.lock().unwrap().replace(ctx);
-
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            log::info!("Single instance check");
+            let _ = app
+                .get_webview_window("main")
+                .or_else(|| app.get_webview_window("bootstrap"))
+                .expect("no window to focus")
+                .set_focus();
+        }))
+        .plugin(tauri_plugin_deep_link::init())
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                .with_denylist(&["bootstrap"])
+                .skip_initial_state("main")
+                .build(),
+        )
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(rspc_tauri2::plugin(router, |_| ()))
         .plugin(
             t_log::Builder::new()
@@ -66,9 +57,42 @@ fn main() -> anyhow::Result<()> {
                 .build(),
         )
         .setup(move |app| {
-            block_on(APP_HANDLE.write()).replace(app.handle().clone());
-            //block_on(obs::prepare_example()).unwrap();
+            APP_HANDLE.blocking_write().replace(app.handle().clone());
+
+            let auth_manager = AuthManager::new(app);
+            if let Err(err) = auth_manager {
+                app.dialog()
+                    .message(format!("Error initializing auth manager: {}", err))
+                    .kind(MessageDialogKind::Error)
+                    .blocking_show();
+
+                process::exit(1);
+            } else {
+                let mut guard = AUTH_MANAGER.blocking_write();
+                *guard = Some(auth_manager.unwrap());
+            }
+
+            #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
+            {
+                app.deep_link().register_all()?;
+            }
+
             Ok(())
+        })
+        .on_window_event(|w, event| match event {
+            WindowEvent::CloseRequested { .. } => {
+                if w.label() != "main" {
+                    return;
+                }
+
+                let e = w
+                    .app_handle()
+                    .save_window_state(StateFlags::SIZE | StateFlags::POSITION);
+                if let Err(e) = e {
+                    log::warn!("Error saving window state: {:?}", e);
+                }
+            }
+            _ => {}
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

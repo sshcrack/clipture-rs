@@ -1,7 +1,8 @@
 {
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "node src-tauri/scripts/before_dev.js && pnpm dev",
     "beforeBuildCommand": "pnpm build",
+    "beforeBundleCommand": "node scripts/before_bundle.js",
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420"
   },
@@ -16,7 +17,7 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "./resources/obs.dll": "./obs.dll",
+      "./resources/obs.dll": "./obs.dll.disabled",
       "./resources/installation-updater.exe": "./installation-updater.exe"
     }
   },
@@ -24,7 +25,15 @@
   "mainBinaryName": "clipture",
   "version": "0.0.0",
   "identifier": "me.sshcrack.clipture",
-  "plugins": {},
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "clipture"
+        ]
+      }
+    }
+  },
   "app": {
     "security": {
       "csp": null
@@ -39,8 +48,6 @@
         "width": 300,
         "height": 150,
         "maximizable": false,
-
-
         "decorations": false,
         "url": "src/bootstrap.html"
       },
@@ -50,6 +57,7 @@
         "width": 800,
         "height": 600,
         "visible": false,
+        "focus": false,
         "url": "src/main.html"
       }
     ]

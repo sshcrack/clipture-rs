@@ -1,18 +1,21 @@
-use std::sync::{atomic::AtomicBool, Arc};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 pub struct AtomicDropGuard {
-    b: Arc<AtomicBool>
+    b: Arc<AtomicBool>,
 }
 
 impl AtomicDropGuard {
     pub fn new(b: Arc<AtomicBool>) -> Self {
-        b.store(true, std::sync::atomic::Ordering::SeqCst);
-        Self { b}
+        b.store(true, Ordering::Relaxed);
+        Self { b }
     }
 }
 
 impl Drop for AtomicDropGuard {
     fn drop(&mut self) {
-        self.b.store(false, std::sync::atomic::Ordering::SeqCst);
+        self.b.store(false, Ordering::Release);
     }
 }

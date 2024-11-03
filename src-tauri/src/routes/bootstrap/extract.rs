@@ -10,7 +10,7 @@ use sevenz_rust::{default_entry_extract_fn, Password, SevenZReader};
 pub(super) enum ExtractStatus {
     Error(anyhow::Error),
     Progress(f32, String),
-    Done(PathBuf)
+    Done(PathBuf),
 }
 
 pub async fn extract_obs(file: &Path) -> anyhow::Result<impl Stream<Item = ExtractStatus>> {
@@ -19,9 +19,10 @@ pub async fn extract_obs(file: &Path) -> anyhow::Result<impl Stream<Item = Extra
     let handle = tauri::async_runtime::handle();
     let path = PathBuf::from(file);
 
-
     let destination = current_exe().expect("Should be able to get current exe");
-    let destination = destination.parent().expect("Should be able to get parent of exe");
+    let destination = destination
+        .parent()
+        .expect("Should be able to get parent of exe");
     let destination = PathBuf::from(destination).join("new-obs");
 
     let dest = destination.clone();

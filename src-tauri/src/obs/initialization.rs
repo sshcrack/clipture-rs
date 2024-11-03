@@ -2,14 +2,30 @@ use libobs_wrapper::{
     context::ObsContext,
     data::ObsData,
     encoders::ObsContextEncoders,
+    enums::ObsLogLevel,
+    logger::ObsLogger,
     utils::{AudioEncoderInfo, OutputInfo, StartupInfo, VideoEncoderInfo},
 };
+
+#[derive(Debug)]
+pub struct LogLogger {}
+impl ObsLogger for LogLogger {
+    fn log(&mut self, level: ObsLogLevel, msg: String) {
+        match level {
+            ObsLogLevel::Error => log::error!("{}", msg),
+            ObsLogLevel::Warning => log::warn!("{}", msg),
+            ObsLogLevel::Info => log::info!("{}", msg),
+            ObsLogLevel::Debug => log::debug!("{}", msg),
+        }
+    }
+}
 
 pub fn initialize_obs(rec_file: &str) -> anyhow::Result<ObsContext> {
     println!("Initializing OBS");
 
     // Start the OBS context
-    let startup_info = StartupInfo::default();
+    let startup_info = StartupInfo::default().set_logger(Box::new(LogLogger {}));
+
     let mut context = ObsContext::new(startup_info)?;
 
     // Set up output to ./recording.mp4

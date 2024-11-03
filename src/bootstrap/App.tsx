@@ -5,15 +5,16 @@ import client from '../misc/client';
 
 export default function BootstrapApp() {
     let [progress, setProgress] = useState(0)
+    let [done, setDone] = useState(false)
     let [status, setStatus] = useState("Checking OBS install")
 
     useEffect(() => {
-        console.log("Subscription")
         const unsubscribe = client.addSubscription(["bootstrap.initialize"], {
             onData: data => {
                 if (data == "Done") {
                     setProgress(1)
                     setStatus("Done")
+                    setDone(true)
                 }
 
                 if (!(typeof data == "object"))
@@ -31,15 +32,13 @@ export default function BootstrapApp() {
             }
         })
 
-        return () => {
-            console.log("Unsubscribing")
-            unsubscribe()
-        };
+        return () => unsubscribe()
     }, [])
 
-    return <div className='flex flex-col gap-6 justify-center pl-5 pr-5 items-center h-full'>
-        <p className='text-lg top-2'>Initializing...</p>
-        <Toaster />
-        <Progress label={status} classNames={{ label: "truncate" }} showValueLabel={true} value={progress} maxValue={1} />
-    </div>
+    if (!done)
+        return <div className='flex flex-col gap-6 justify-center pl-5 pr-5 items-center h-full'>
+            <p className='text-lg top-2'>Initializing...</p>
+            <Toaster />
+            <Progress label={status} classNames={{ label: "truncate" }} showValueLabel={true} value={progress} maxValue={1} />
+        </div>
 }

@@ -9,7 +9,10 @@ use sha2::{Digest, Sha256};
 use tokio::{fs::File, io::AsyncWriteExt};
 use uuid::Uuid;
 
-use crate::{json_to_rs::github, utils::consts::{OBS_VERSION, RELEASES_URL}};
+use crate::{
+    json_to_rs::github,
+    utils::consts::{OBS_VERSION, RELEASES_URL},
+};
 
 pub(super) enum DownloadStatus {
     Error(anyhow::Error),
@@ -61,8 +64,12 @@ pub(super) async fn download_obs() -> anyhow::Result<impl Stream<Item = Download
 
     let mut bytes_stream = res.bytes_stream();
 
-    let path = PathBuf::new().join(temp_dir()).join(format!("{}.7z", Uuid::new_v4()));
-    let mut tmp_file = File::create_new(&path).await.context("Creating temporary file")?;
+    let path = PathBuf::new()
+        .join(temp_dir())
+        .join(format!("{}.7z", Uuid::new_v4()));
+    let mut tmp_file = File::create_new(&path)
+        .await
+        .context("Creating temporary file")?;
     let mut curr_len = 0;
 
     let mut hasher = Sha256::new();

@@ -1,4 +1,5 @@
 use tauri::Manager;
+use tauri_plugin_window_state::{StateFlags, WindowExt};
 
 use crate::utils::consts::APP_HANDLE;
 
@@ -11,10 +12,13 @@ pub async fn open_main_window() -> anyhow::Result<()> {
         .expect("Should have bootstrap window")
         .close()?;
 
-    handle
+    let main = handle
         .get_webview_window("main")
-        .expect("Should have main window")
-        .show()?;
+        .expect("Should have main window");
+
+    main.show()?;
+    main.restore_state(StateFlags::POSITION | StateFlags::SIZE)?;
+        
 
     Ok(())
 }
