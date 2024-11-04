@@ -11,25 +11,36 @@ edition = "2021"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-libobs-wrapper = { version = "0.2.2", features = [
-    "unsafe-send",
-], path = "../../libobs-rs/libobs-wrapper" }
-libobs-sources = { version = "0.1.0", path = "../../libobs-rs/libobs-sources" }
-anyhow = { version = "1.0.86", features = ["backtrace"] }
-crash-handler = "0.6.2"
-minidumper = "0.8.3"
-directories = "5.0.1"
-tauri-plugin-log = { version = "2" }
-lazy_static = "1.5.0"
-libobs-window-helper = "0.1.2"
-tauri-plugin-shell = "2"
-log = "0.4.22"
+# Async Runtime
 tokio = { version = "1.41.0", features = ["full"] }
 async-stream = "0.3.6"
+tauri = { version = "2", features = [] }
+futures-core = "0.3.31"
+futures-util = "0.3.31"
 
+
+# OBS
+libobs-wrapper = { path = "../../libobs-rs/libobs-wrapper", features = [
+    "unsafe-send",
+] }
+libobs-sources = { version = "0.1.0", path = "../../libobs-rs/libobs-sources" }
+libobs-window-helper = "0.1.2"
+
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = { version = "1.0.92", features = ["backtrace"] }
+
+# Crash Handling
+crash-handler = "0.6.2"
+minidumper = "0.8.3"
+
+directories = "5.0.1"
+lazy_static = "1.5.0"
+log = "0.4.22"
+
+
+# RPC and Specta
 rspc = { version = "0.2.0", features = [
     "specta2",
 ] } # <- The specta2 feature is what makes this all work
@@ -40,28 +51,37 @@ tauri-specta = { version = "2.0.0-rc.20", features = [
 ] }
 specta = { package = "specta", version = "=2.0.0-rc.20", features = [
     "serde",
-    "interop"
+    "interop",
 ] }
 
 
+# For OBS extraction
 sevenz-rust = "0.6.1"
-futures-core = "0.3.31"
-futures-util = "0.3.31"
 reqwest = "0.12.9"
-semver = "1.0.23"
-sha2 = "0.10.8"
 hex = "0.4.3"
-keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
-tauri-plugin-dialog = "2.0.3"
-windows = "0.58.0"
-webview2-com = "0.33.0"
+sha2 = "0.10.8"
+semver = "1.0.23"
+
+
+# Api AUTH
+keyring = { version = "3", features = [
+    "apple-native",
+    "windows-native",
+    "sync-secret-service",
+] }
 open = "5.3.0"
+uuid = { version = "1.11.0", features = ["v4"] }
+whoami = "1.5.2"
+
+
+# Tauri Plugins
 tauri-plugin-deep-link = "2"
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 tauri-plugin-window-state = "2"
-uuid = { version = "1.11.0", features = ["v4"] }
+tauri-plugin-log = { version = "2" }
+tauri-plugin-dialog = "2.0.3"
 tauri-plugin-process = "2"
-whoami = "1.5.2"
+tauri-plugin-shell = "2"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
@@ -80,5 +100,5 @@ strip = true      # Ensures debug symbols are removed.
 # I know these do nothing in a Cargo workspace but this should help if people copy this example.
 [patch.crates-io]
 # Interop support
-specta = { git = "https://github.com/oscartbeaumont/specta", tag="v2.0.0-rc.20" }
+specta = { git = "https://github.com/oscartbeaumont/specta", tag = "v2.0.0-rc.20" }
 rspc = { git = "https://github.com/sshcrack/rspc", branch = "specta-update" }

@@ -13,9 +13,7 @@ use tokio::{
     time::{self, Instant},
 };
 
-use crate::utils::consts::clipture_to_url;
-
-mod types;
+use crate::{json_typings::clipture_api::validation, utils::consts::clipture_to_url};
 pub struct AuthManager {
     entry: Entry,
     cookie_map: Arc<RwLock<Option<HashMap<String, String>>>>,
@@ -129,7 +127,7 @@ impl AuthManager {
             .await?;
 
         let res = res.error_for_status()?;
-        let res: types::Root = res.json().await?;
+        let res: validation::report::Root = res.json().await?;
 
         let mut mapped = HashMap::<String, String>::new();
         for entry in &res.entry {

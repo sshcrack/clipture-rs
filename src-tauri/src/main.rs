@@ -8,18 +8,16 @@ use std::{
 };
 
 use anyhow::Context;
-use auth::{AuthManager, AUTH_MANAGER};
+use core::auth::{AuthManager, AUTH_MANAGER};
 use routes::BOOTSTRAP_DONE;
 use tauri::{Manager, WindowEvent};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_log as t_log;
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
-use utils::consts::APP_HANDLE;
+use utils::{consts::APP_HANDLE, crash_handler};
 
-mod auth;
-mod crash_handler;
-mod json_to_rs;
-mod obs;
+mod core;
+mod json_typings;
 mod routes;
 mod utils;
 

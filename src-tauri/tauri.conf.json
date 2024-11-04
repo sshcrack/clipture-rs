@@ -16,7 +16,7 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "./resources/obs.dll": "./obs.dll",
+      "./resources/obs.dll": "./obs.dll.disabled",
       "./resources/installation-updater.exe": "./installation-updater.exe"
     }
   },
@@ -45,7 +45,8 @@
         "height": 600,
         "visible": false,
         "focus": false,
-        "url": "src/main.html"
+        "url": "src/main.html",
+        "decorations": false
       },
       {
         "title": "Bootstrap",

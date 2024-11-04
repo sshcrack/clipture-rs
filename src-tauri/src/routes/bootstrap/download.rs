@@ -10,7 +10,7 @@ use tokio::{fs::File, io::AsyncWriteExt};
 use uuid::Uuid;
 
 use crate::{
-    json_to_rs::github,
+    json_typings::github,
     utils::consts::{OBS_VERSION, RELEASES_URL},
 };
 

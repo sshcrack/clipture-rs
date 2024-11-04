@@ -1,6 +1,6 @@
 use rspc::{ErrorCode, RouterBuilder};
 
-use crate::auth::AUTH_MANAGER;
+use crate::core::auth::AUTH_MANAGER;
 
 pub fn auth() -> RouterBuilder {
     <RouterBuilder>::new() //
