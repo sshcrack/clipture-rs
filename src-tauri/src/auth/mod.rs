@@ -1,10 +1,6 @@
-use std::{
-    collections::HashMap,
-    sync::{atomic::AtomicBool, Arc},
-    time::Duration,
-};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
-use anyhow::{anyhow, bail, Context, Ok};
+use anyhow::{anyhow, Context, Ok};
 use keyring::Entry;
 use lazy_static::lazy_static;
 use tauri::{App, Url};
@@ -12,19 +8,18 @@ use tauri_plugin_deep_link::DeepLinkExt;
 use tokio::{
     sync::{
         mpsc::{self, UnboundedReceiver},
-        RwLock,
+        Mutex, RwLock,
     },
     time::{self, Instant},
 };
 
-use crate::utils::{consts::clipture_to_url, util::AtomicDropGuard};
+use crate::utils::consts::clipture_to_url;
 
 mod types;
 pub struct AuthManager {
     entry: Entry,
-    cookie_map: Option<HashMap<String, String>>,
-    curr_login: Arc<AtomicBool>,
-    rx: UnboundedReceiver<Url>,
+    cookie_map: Arc<RwLock<Option<HashMap<String, String>>>>,
+    rx: Mutex<UnboundedReceiver<Url>>,
 }
 
 impl AuthManager {
@@ -36,52 +31,73 @@ impl AuthManager {
             }
         });
 
-        let entry = Entry::new("clipture-rs", "token")?;
-        let cookie_map = entry.get_password().ok().and_then(|password| {
-            let r: Option<HashMap<String, String>> = serde_json::from_str(&password).ok();
+        let entry = Entry::new("clipture-rs", &whoami::username())?;
+        let pass = entry.get_password();
+        if let Err(e) = &pass {
+            log::warn!("Failed to get password: {}", e);
+        }
 
-            r
+        let cookie_map = pass.ok().and_then(|password| {
+            let r = serde_json::from_str::<HashMap<String, String>>(&password);
+            if let Err(e) = r {
+                log::warn!("Failed to deserialize password: {}", e);
+                return None;
+            }
+
+            r.ok()
         });
 
+        log::debug!("Auth Manager initializing: {}", cookie_map.is_some());
         let a = AuthManager {
             entry,
-            cookie_map,
-            curr_login: Arc::new(AtomicBool::new(false)),
-            rx,
+            cookie_map: Arc::new(RwLock::new(cookie_map)),
+            rx: Mutex::new(rx),
         };
 
         Ok(a)
     }
 
     #[allow(dead_code)]
-    pub fn get_cookies(&self) -> Option<&HashMap<String, String>> {
-        self.cookie_map.as_ref()
+    pub async fn get_cookies(&self) -> Option<HashMap<String, String>> {
+        self.cookie_map.read().await.clone()
     }
 
-    pub fn is_logged_in(&self) -> bool {
-        self.entry.get_password().is_ok()
+    pub async fn is_logged_in(&self) -> bool {
+        self.cookie_map.read().await.is_some()
     }
 
-    pub async fn login(&mut self) -> anyhow::Result<()> {
-        let url = clipture_to_url("/redirects/login?appLogin=true");
-        if self.rx.is_closed() {
-            bail!("URL callback channel closed");
-        }
+    pub async fn sign_out(&self) -> anyhow::Result<()> {
+        *self.cookie_map.write().await = None;
+        self.entry
+            .delete_credential()
+            .context("Deleting password")?;
+        Ok(())
+    }
+
+    pub fn open_sign_in_window(&self) -> () {
+        let url: String = clipture_to_url("/redirects/login?appLogin=true");
+        open::that_in_background(url);
+    }
+
+    pub async fn sign_in(&self) -> anyhow::Result<()> {
+        let mut rx = self
+            .rx
+            .try_lock()
+            .map_err(|_| anyhow!("Already logging in [ALREADY_LOG]"))?;
+
+        self.open_sign_in_window();
 
         // Clear URL callback here
-        while !self.rx.is_empty() {
-            let _ = self.rx.recv().await;
+        while !rx.is_empty() {
+            let _ = rx.recv().await;
         }
-
-        open::that_in_background(url);
-        let _guard = AtomicDropGuard::new(self.curr_login.clone());
 
         // Timeout at 10 minutes
         let timeout_at = Duration::from_secs(60 * 10);
         let timeout_at = Instant::now() + timeout_at;
 
         let secret = loop {
-            let url = time::timeout_at(timeout_at, self.rx.recv())
+            let url = time::timeout_at(timeout_at, rx.recv())
                 .await
                 .context("Waiting for URL callback timed out")?
                 .ok_or_else(|| anyhow!("URL callback channel closed"))?;
@@ -121,8 +137,12 @@ impl AuthManager {
 
         // Wait for URL callback here
         let as_str = serde_json::to_string(&mapped).context("Serializing JSON")?;
-        self.entry.set_password(&as_str).context("Setting password")?;
-        self.cookie_map = Some(mapped);
+        self.entry
+            .set_password(&as_str)
+            .context("Setting password")?;
+
+        log::debug!("Saved {} total of cookies", mapped.len());
+        *self.cookie_map.write().await = Some(mapped);
 
         Ok(())
     }

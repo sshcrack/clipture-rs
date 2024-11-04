@@ -7,6 +7,7 @@ mod bootstrap;
 
 use auth::auth;
 use bootstrap::bootstrap;
+pub use bootstrap::BOOTSTRAP_DONE;
 
 pub fn router() -> Arc<Router<()>> {
     <Router>::new()

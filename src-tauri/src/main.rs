@@ -1,15 +1,16 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(not(any(debug_assertions, feature="show-console")), windows_subsystem = "windows")]
 
 use std::{
     env::{current_exe, set_current_dir},
     process,
+    sync::atomic::Ordering,
 };
 
 use anyhow::Context;
 use auth::{AuthManager, AUTH_MANAGER};
+use routes::BOOTSTRAP_DONE;
 use tauri::{Manager, WindowEvent};
-use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_log as t_log;
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
@@ -31,21 +32,30 @@ fn main() -> anyhow::Result<()> {
     let router = routes::router();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             log::info!("Single instance check");
-            let _ = app
-                .get_webview_window("main")
-                .or_else(|| app.get_webview_window("bootstrap"))
-                .expect("no window to focus")
-                .set_focus();
+            let window = app
+                .get_webview_window("bootstrap")
+                .or_else(|| app.get_webview_window("main"));
+
+            if let Some(window) = window {
+                log::debug!("Focusing window {}", window.label());
+                let e = window.set_focus();
+                if let Err(e) = e {
+                    log::warn!("Error setting focus to main window: {:?}", e);
+                }
+            }
         }))
         .plugin(tauri_plugin_deep_link::init())
-        .plugin(
-            tauri_plugin_window_state::Builder::new()
-                .with_denylist(&["bootstrap"])
-                .skip_initial_state("main")
-                .build(),
-        )
+        .plugin({
+            let b = tauri_plugin_window_state::Builder::new().skip_initial_state("main");
+
+            #[cfg(debug_assertions)]
+            let b = b.with_denylist(&["bootstrap"]);
+
+            b.build()
+        })
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(rspc_tauri2::plugin(router, |_| ()))
@@ -74,6 +84,7 @@ fn main() -> anyhow::Result<()> {
 
             #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
             {
+                use tauri_plugin_deep_link::DeepLinkExt;
                 app.deep_link().register_all()?;
             }
 
@@ -81,6 +92,20 @@ fn main() -> anyhow::Result<()> {
         })
         .on_window_event(|w, event| match event {
             WindowEvent::CloseRequested { .. } => {
+                if w.label() == "bootstrap" {
+                    if BOOTSTRAP_DONE.load(Ordering::Relaxed) {
+                        return;
+                    }
+
+                    let main = w.get_webview_window("main");
+                    if let Some(main) = main {
+                        let e = main.close();
+                        if let Err(e) = e {
+                            log::warn!("Error closing main window: {:?}", e);
+                        }
+                    }
+                }
+
                 if w.label() != "main" {
                     return;
                 }

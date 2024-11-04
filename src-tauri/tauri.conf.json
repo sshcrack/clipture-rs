@@ -1,8 +1,7 @@
 {
   "build": {
     "beforeDevCommand": "node src-tauri/scripts/before_dev.js && pnpm dev",
-    "beforeBuildCommand": "pnpm build",
-    "beforeBundleCommand": "node scripts/before_bundle.js",
+    "beforeBuildCommand": "node src-tauri/scripts/before_build.js && pnpm build",
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420"
   },
@@ -17,7 +16,7 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "./resources/obs.dll": "./obs.dll.disabled",
+      "./resources/obs.dll": "./obs.dll",
       "./resources/installation-updater.exe": "./installation-updater.exe"
     }
   },
@@ -40,6 +39,15 @@
     },
     "windows": [
       {
+        "title": "Clipture",
+        "label": "main",
+        "width": 800,
+        "height": 600,
+        "visible": false,
+        "focus": false,
+        "url": "src/main.html"
+      },
+      {
         "title": "Bootstrap",
         "label": "bootstrap",
         "center": true,
@@ -50,15 +58,6 @@
         "maximizable": false,
         "decorations": false,
         "url": "src/bootstrap.html"
-      },
-      {
-        "title": "Clipture",
-        "label": "main",
-        "width": 800,
-        "height": 600,
-        "visible": false,
-        "focus": false,
-        "url": "src/main.html"
       }
     ]
   }

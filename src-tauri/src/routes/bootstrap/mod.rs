@@ -1,4 +1,5 @@
 use std::{
+    path::Path,
     process::{exit, Command},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -12,28 +13,21 @@ use extract::extract_obs;
 use futures_core::Stream;
 use futures_util::{pin_mut, StreamExt};
 use lazy_static::lazy_static;
-use libobs_wrapper::context::ObsContext;
-use login::LoginStatus;
 use obs::bootstrap_obs;
 use rspc::{ErrorCode, Router, RouterBuilder};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::{process::current_binary, Manager};
-use tokio::{
-    fs::{self, remove_file},
-    sync::broadcast,
-};
+use tokio::{fs::remove_file, sync::broadcast};
+use verify::verify_installation;
 use window::open_main_window;
 
-use crate::utils::{
-    consts::{APP_HANDLE, INVALID_OBS_SIZE, OBS_VERSION},
-    util::AtomicDropGuard,
-};
+use crate::utils::{consts::APP_HANDLE, util::AtomicDropGuard};
 
 mod download;
 mod extract;
-mod login;
 mod obs;
+mod verify;
 mod window;
 
 #[derive(Debug, Clone, Type, Serialize, Deserialize)]
@@ -43,38 +37,11 @@ pub enum BootstrapStatus {
     Done,
 }
 
-async fn verify_installation() -> anyhow::Result<bool> {
-    let handle = APP_HANDLE.read().await;
-    let handle = handle.as_ref().expect("Should have app handle");
-
-    let binary_path = current_binary(&handle.env())?;
-    let obs_path = binary_path.parent().unwrap().join("obs.dll");
-    if !obs_path.exists() {
-        log::debug!("obs.dll at path {:?} does not exist", obs_path.display());
-        return Ok(false);
-    }
-
-    let metadata = fs::metadata(&obs_path).await?;
-    if metadata.len() < INVALID_OBS_SIZE as u64 {
-        log::debug!("obs.dll is invalid size: {:?}", metadata.len());
-        return Ok(false);
-    }
-
-    let local_version = ObsContext::get_version();
-    log::debug!("Verify version OBS: {:?}", local_version);
-    let local_version = local_version.parse::<semver::Version>();
-
-    if local_version.is_err() {
-        return Ok(false);
-    }
-
-    let matches = OBS_VERSION.matches(&local_version.unwrap());
-    log::debug!("Version matches: {:?}", matches);
-
-    return Ok(matches);
+lazy_static! {
+    pub static ref BOOTSTRAP_DONE: AtomicBool = AtomicBool::new(false);
 }
 
-async fn restart_with_extracted(extract_path: std::path::PathBuf) -> ! {
+async fn restart_with_extracted(extract_path: &Path) -> ! {
     let handle = APP_HANDLE.read().await;
     let handle = handle.as_ref().expect("Should have app handle");
 
@@ -97,21 +64,9 @@ async fn restart_with_extracted(extract_path: std::path::PathBuf) -> ! {
     exit(0);
 }
 
-pub fn bootstrap_inner() -> impl Stream<Item = BootstrapStatus> {
+pub fn prepare_obs() -> impl Stream<Item = BootstrapStatus> {
     stream! {
-        log::info!("Starting bootstrap");
-
-        let _guard = AtomicDropGuard::new(IN_PROGRESS.clone());
-        let valid_result = verify_installation().await;
-        if let Err(err) = valid_result {
-            log::error!("Error verifying installation: {:?}", err);
-            yield BootstrapStatus::Error(err.to_string());
-            return;
-        }
-
-        let is_valid = valid_result.unwrap();
-        if !is_valid {
-            yield BootstrapStatus::Progress(0.0, "Getting latest OBS release".to_string());
+        yield BootstrapStatus::Progress(0.0, "Getting latest OBS release".to_string());
             let download_stream = download_obs().await;
             if let Err(e) = download_stream {
                 log::error!("Error downloading OBS: {:?}", e);
@@ -171,7 +126,36 @@ pub fn bootstrap_inner() -> impl Stream<Item = BootstrapStatus> {
                 }
             }
 
-            restart_with_extracted(extract_path.expect("Should have a extract_path")).await;
+            restart_with_extracted(&extract_path.expect("Should have a extract_path")).await;
+    }
+}
+
+pub fn bootstrap_inner() -> impl Stream<Item = BootstrapStatus> {
+    stream! {
+        log::info!("Starting bootstrap");
+
+        let _guard = AtomicDropGuard::new(IN_PROGRESS.clone());
+        let valid_result = verify_installation().await;
+        if let Err(err) = valid_result {
+            log::error!("Error verifying installation: {:?}", err);
+            yield BootstrapStatus::Error(err.to_string());
+            return;
+        }
+
+        let verify_result = valid_result.unwrap();
+        match verify_result {
+            verify::VerifyResult::Invalid => {
+                let prepare_stream = prepare_obs();
+                pin_mut!(prepare_stream);
+
+                while let Some(status) = prepare_stream.next().await {
+                    yield status;
+                }
+            },
+            verify::VerifyResult::Restored(extract_path) => {
+                restart_with_extracted(&extract_path).await;
+            },
+            verify::VerifyResult::Ok => {}
         }
 
 
@@ -189,30 +173,14 @@ pub fn bootstrap_inner() -> impl Stream<Item = BootstrapStatus> {
                     yield BootstrapStatus::Progress(prog / 3.0 + 2.0 / 3.0, msg)
                 }
                 BootstrapStatus::Done => {
-                    yield BootstrapStatus::Progress(1.0, "Obs initialized".to_string());
+                    yield BootstrapStatus::Progress(1.0, "Obs Initialized".to_string());
                 }
             }
         }
 
+        log::debug!("Bootstrap done");
 
-        let login_stream = login::try_login();
-        pin_mut!(login_stream);
-        while let Some(status) = login_stream.next().await {
-            match status {
-                LoginStatus::Error(err) => {
-                    log::error!("Error initializing OBS: {:?}", err);
-                    yield BootstrapStatus::Error(format!("{}", err));
-                    return;
-                }
-                LoginStatus::Progress(prog, msg) => {
-                    yield BootstrapStatus::Progress(prog / 3.0 + 2.0 / 3.0, msg)
-                },
-                LoginStatus::Done => {
-                    yield BootstrapStatus::Progress(1.0, "Obs initialized".to_string());
-                },
-            }
-        }
-
+        BOOTSTRAP_DONE.store(true, Ordering::Release);
         yield BootstrapStatus::Done;
     }
 }

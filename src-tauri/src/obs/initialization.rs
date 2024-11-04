@@ -12,10 +12,10 @@ pub struct LogLogger {}
 impl ObsLogger for LogLogger {
     fn log(&mut self, level: ObsLogLevel, msg: String) {
         match level {
-            ObsLogLevel::Error => log::error!("{}", msg),
-            ObsLogLevel::Warning => log::warn!("{}", msg),
-            ObsLogLevel::Info => log::info!("{}", msg),
-            ObsLogLevel::Debug => log::debug!("{}", msg),
+            ObsLogLevel::Error => log::error!(target: "obs", "{}", msg),
+            ObsLogLevel::Warning => log::warn!(target: "obs", "{}", msg),
+            ObsLogLevel::Info => log::info!(target: "obs", "{}", msg),
+            ObsLogLevel::Debug => log::debug!(target: "obs", "{}", msg),
         }
     }
 }

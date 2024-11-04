@@ -18,7 +18,6 @@ pub async fn open_main_window() -> anyhow::Result<()> {
 
     main.show()?;
     main.restore_state(StateFlags::POSITION | StateFlags::SIZE)?;
-        
 
     Ok(())
 }

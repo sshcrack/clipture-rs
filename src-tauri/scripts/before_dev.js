@@ -16,5 +16,10 @@ if (curr) {
 
 const targetFile = path.resolve(__dirname, "../target/debug/obs.dll")
 const sourceFile = path.resolve(__dirname, "..", curr)
-if(!fs.existsSync(targetFile))
+if (!fs.existsSync(targetFile)) {
+    const targetDir = path.dirname(targetFile)
+    if (!fs.existsSync(targetDir))
+        fs.mkdirSync(targetDir, { recursive: true })
+
     fs.copyFileSync(sourceFile, targetFile)
+}

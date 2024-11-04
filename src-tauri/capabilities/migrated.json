@@ -11,6 +11,8 @@
     "shell:allow-open",
     "shell:default",
     "core:window:allow-show",
-    "core:window:allow-close"
+    "core:window:allow-close",
+    "process:allow-restart",
+    "log:default"
   ]
 }

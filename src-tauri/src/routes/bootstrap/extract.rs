@@ -63,9 +63,10 @@ pub async fn extract_obs(file: &Path) -> anyhow::Result<impl Stream<Item = Extra
                         Ok(e) => yield e,
                         Err(e) => {
                             yield Err(e.into());
-                            break;
                         }
                     }
+
+                    break;
                 }
             };
         }

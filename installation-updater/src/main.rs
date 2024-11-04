@@ -10,7 +10,7 @@ use walkdir::WalkDir;
 
 fn main() {
     let data_dir = args().nth(1).unwrap();
-    let data_dir = PathBuf::from(data_dir);
+    let copy_from = PathBuf::from(data_dir);
 
     let clipture_bin = args().nth(2).unwrap();
     let clipture_bin = PathBuf::from(clipture_bin);
@@ -32,11 +32,11 @@ fn main() {
     }
 
     // Copy recursivly every item of data dir to copy_to using walkdir
-    let walker = WalkDir::new(&data_dir);
+    let walker = WalkDir::new(&copy_from);
     for entry in walker {
         let entry = entry.unwrap();
         let src = entry.path();
-        let dest = copy_to.join(src.strip_prefix(&data_dir).unwrap());
+        let dest = copy_to.join(src.strip_prefix(&copy_from).unwrap());
         if src.is_file() {
             fs::copy(src, dest).unwrap();
         } else {
@@ -44,6 +44,7 @@ fn main() {
         }
     }
 
+    let _ = fs::remove_dir_all(copy_from);
     Command::new(clipture_bin)
         .args(args_os().skip(3))
         .spawn()
