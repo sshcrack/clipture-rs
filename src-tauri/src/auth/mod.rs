@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
-use anyhow::{anyhow, Context, Ok};
+use anyhow::{anyhow, bail, Context, Ok};
 use keyring::Entry;
 use lazy_static::lazy_static;
 use tauri::{App, Url};
@@ -117,6 +117,7 @@ impl AuthManager {
                 .find(|entry| entry.0 == "secret")
                 .ok_or_else(|| anyhow!("No secret in URL"))?
                 .1
+                .trim()
                 .to_string();
         };
 
@@ -131,8 +132,8 @@ impl AuthManager {
         let res: types::Root = res.json().await?;
 
         let mut mapped = HashMap::<String, String>::new();
-        for entry in res.entry {
-            mapped.insert(entry.key, entry.cookie);
+        for entry in &res.entry {
+            mapped.insert(entry.key.clone(), entry.cookie.clone());
         }
 
         // Wait for URL callback here
@@ -141,6 +142,10 @@ impl AuthManager {
             .set_password(&as_str)
             .context("Setting password")?;
 
+        if mapped.len() == 0 {
+            log::warn!("{:?}", res);
+            bail!("No cookies received");
+        }
         log::debug!("Saved {} total of cookies", mapped.len());
         *self.cookie_map.write().await = Some(mapped);
 

@@ -13,6 +13,7 @@
     "core:window:allow-show",
     "core:window:allow-close",
     "process:allow-restart",
-    "log:default"
+    "log:default",
+    "window-state:default"
   ]
 }
