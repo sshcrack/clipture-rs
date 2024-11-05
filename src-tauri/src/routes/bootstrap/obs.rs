@@ -29,7 +29,12 @@ pub async fn bootstrap_obs() -> impl Stream<Item = BootstrapStatus> {
             return;
         }
 
-        GAME_DETECTION.write().await.replace(detector.unwrap());
+        let mut detector = detector.unwrap();
+        let _ = detector.add_listener(Box::new(|event| {
+            log::info!("Game event: {:?}", event);
+        }));
+
+        GAME_DETECTION.write().await.replace(detector);
         yield BootstrapStatus::Done;
     }
 }

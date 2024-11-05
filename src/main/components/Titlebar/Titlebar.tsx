@@ -1,16 +1,31 @@
-import { FaWindowClose, FaWindowMaximize, FaWindowMinimize } from 'react-icons/fa'
+import { VscChromeClose, VscChromeMaximize, VscChromeMinimize, VscChromeRestore } from "react-icons/vsc";
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import "./titlebar.css"
+import { useEffect, useMemo, useState } from 'react';
 
 export default function Titlebar() {
-    return <div data-tauri-drag-region className="titlebar bg-gradient-to-r from-purple-400 via-blue-400 to-blue-200">
-        <div className="titlebar-button color-white hover:bg-purple-300" id="titlebar-minimize">
-            <FaWindowMinimize />
+    const appWindow = useMemo(() => getCurrentWindow(), [])
+    const [isMaximized, setIsMaximized] = useState(false)
+
+    useEffect(() => {
+        appWindow.isMaximized().then(setIsMaximized)
+    }, [appWindow])
+    return <>
+        <div data-tauri-drag-region className="titlebar bg-gradient-to-r from-blue-400 via-violet-600 to-purple-600">
+            <div onClick={() => appWindow.minimize()} className="titlebar-button color-white hover:bg-white/[0.25] hover:ease-in duration-100" id="titlebar-minimize">
+                <VscChromeMinimize />
+            </div>
+            <div onClick={() => {
+                appWindow.toggleMaximize()
+                    .then(() => appWindow.isMaximized())
+                    .then(setIsMaximized)
+            }} className="titlebar-button hover:bg-white/[0.25] hover:ease-in duration-100" id="titlebar-maximize">
+                {isMaximized ? <VscChromeRestore /> : <VscChromeMaximize />}
+            </div>
+            <div onClick={() => appWindow.close()} className="titlebar-button hover:bg-red-500/[0.5] hover:ease-in duration-100" id="titlebar-close">
+                <VscChromeClose />
+            </div>
         </div>
-        <div className="titlebar-button" id="titlebar-maximize">
-            <FaWindowMaximize />
-        </div>
-        <div className="titlebar-button" id="titlebar-close">
-            <FaWindowClose />
-        </div>
-    </div>
+        <div className='titlebar-spacer' />
+    </>
 }

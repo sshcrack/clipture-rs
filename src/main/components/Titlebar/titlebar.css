@@ -1,5 +1,6 @@
 .titlebar {
   height: 30px;
+  -webkit-user-select: none;
   user-select: none;
   display: flex;
   justify-content: flex-end;
@@ -14,6 +15,10 @@
   align-items: center;
   width: 30px;
   height: 30px;
-  user-select: none;
   -webkit-user-select: none;
+  user-select: none;
+}
+
+.titlebar-spacer {
+  height: 30px;
 }

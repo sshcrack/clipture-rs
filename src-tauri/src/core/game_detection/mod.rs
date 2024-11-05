@@ -58,6 +58,7 @@ impl GameDetection {
         Ok(s)
     }
 
+    #[allow(dead_code)]
     pub async fn add_listener(&mut self, listener: ListenerPtr<GameEvent>) -> Uuid {
         let token = Uuid::new_v4();
         self.listeners.write().await.insert(token.clone(), listener);
@@ -65,6 +66,7 @@ impl GameDetection {
         token
     }
 
+    #[allow(dead_code)]
     pub async fn remove_listener(&mut self, token: Uuid) {
         self.listeners.write().await.remove(&token);
     }
