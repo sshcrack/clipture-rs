@@ -23,8 +23,8 @@ futures-util = "0.3.31"
 libobs-wrapper = { path = "../../libobs-rs/libobs-wrapper", features = [
     "unsafe-send",
 ] }
-libobs-sources = { version = "0.1.0", path = "../../libobs-rs/libobs-sources" }
-libobs-window-helper = "0.1.2"
+libobs-sources = { path = "../../libobs-rs/libobs-sources" }
+libobs-window-helper = { path = "../../libobs-rs/libobs-window-helper", features = ["serde"] }
 
 
 serde = { version = "1", features = ["derive"] }
@@ -83,6 +83,7 @@ tauri-plugin-dialog = "2.0.3"
 tauri-plugin-process = "2"
 tauri-plugin-shell = "2"
 async-trait = "0.1.83"
+tokio-util = "0.7.12"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

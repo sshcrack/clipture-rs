@@ -1,7 +1,10 @@
 use async_stream::stream;
 use futures_core::Stream;
 
-use crate::core::obs;
+use crate::{
+    core::{game_detection::GameDetection, obs},
+    utils::consts::GAME_DETECTION,
+};
 
 use super::BootstrapStatus;
 
@@ -17,7 +20,16 @@ pub async fn bootstrap_obs() -> impl Stream<Item = BootstrapStatus> {
             return;
         }
 
+        yield BootstrapStatus::Progress(0.5, "Initializing Game Detector...".to_string());
 
+        let detector = GameDetection::initialize().await;
+        if let Err(e) = detector {
+            log::error!("Error initializing Game Detector: {:?}", e);
+            yield BootstrapStatus::Error(e.to_string());
+            return;
+        }
+
+        GAME_DETECTION.write().await.replace(detector.unwrap());
         yield BootstrapStatus::Done;
     }
 }

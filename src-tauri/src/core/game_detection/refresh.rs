@@ -1,9 +1,13 @@
 use std::{sync::Arc, time::Duration};
 
-use crate::{json_typings::clipture_api::game::detection, utils::consts::{app_handle, clipture_to_url}};
+use crate::{
+    json_typings::clipture_api::game::detection,
+    utils::consts::{app_handle, clipture_to_url},
+};
 use async_trait::async_trait;
 use tauri::Manager;
-use tokio::{fs, sync::RwLock, task::JoinHandle, time::Instant};
+use tokio::{fs, select, sync::RwLock, task::JoinHandle, time::Instant};
+use tokio_util::sync::CancellationToken;
 
 use super::{GameDetection, GAME_DETECTION_FILE, REFRESH_INTERVAL};
 
@@ -13,12 +17,18 @@ pub(super) trait RefreshGameDetection {
     /// Returns as an option the detection data and when the data should be refreshed again
     async fn refresh() -> anyhow::Result<(Option<detection::Root>, Instant)>;
 
-    async fn spawn_refresh_thread(lock: Arc<RwLock<detection::Root>>) -> JoinHandle<()>;
+    async fn spawn_refresh_file_thread(
+        token: CancellationToken,
+        lock: Arc<RwLock<detection::Root>>,
+    ) -> JoinHandle<()>;
 }
 
 #[async_trait]
 impl RefreshGameDetection for GameDetection {
-    async fn spawn_refresh_thread(lock: Arc<RwLock<detection::Root>>) -> JoinHandle<()> {
+    async fn spawn_refresh_file_thread(
+        token: CancellationToken,
+        lock: Arc<RwLock<detection::Root>>,
+    ) -> JoinHandle<()> {
         tokio::spawn(async move {
             loop {
                 let r = Self::refresh().await;
@@ -33,7 +43,10 @@ impl RefreshGameDetection for GameDetection {
                     *lock.write().await = game_detection;
                 }
 
-                tokio::time::sleep_until(refresh_time).await;
+                select! {
+                    _ = tokio::time::sleep_until(refresh_time) => {}
+                    _ = token.cancelled() => break,
+                }
             }
         })
     }

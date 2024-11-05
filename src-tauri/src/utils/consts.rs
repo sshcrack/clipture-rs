@@ -5,8 +5,12 @@ use semver::VersionReq;
 use tauri::AppHandle;
 use tokio::sync::RwLock;
 
+use crate::core::game_detection::GameDetection;
+
 lazy_static! {
     pub static ref APP_HANDLE: Arc<RwLock<Option<AppHandle>>> = Arc::new(RwLock::new(None));
+    pub static ref GAME_DETECTION: Arc<RwLock<Option<GameDetection>>> = Arc::new(RwLock::new(None));
+
     pub static ref OBS_VERSION: VersionReq =
         VersionReq::parse("^30.2.0").expect("Invalid OBS version requirement");
 }

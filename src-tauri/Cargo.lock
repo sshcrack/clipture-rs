@@ -728,7 +728,7 @@ dependencies = [
  "keyring",
  "lazy_static",
  "libobs-sources",
- "libobs-window-helper",
+ "libobs-window-helper 0.1.2",
  "libobs-wrapper",
  "log",
  "minidumper",
@@ -753,6 +753,7 @@ dependencies = [
  "tauri-plugin-window-state",
  "tauri-specta",
  "tokio",
+ "tokio-util",
  "uuid",
  "whoami",
 ]
@@ -2563,10 +2564,20 @@ dependencies = [
  "display-info",
  "libobs-new",
  "libobs-source-macro",
- "libobs-window-helper",
+ "libobs-window-helper 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libobs-wrapper",
  "num-derive",
  "num-traits",
+]
+
+[[package]]
+name = "libobs-window-helper"
+version = "0.1.2"
+dependencies = [
+ "anyhow",
+ "serde",
+ "windows 0.58.0",
+ "windows-result 0.2.0",
 ]
 
 [[package]]
