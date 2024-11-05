@@ -82,6 +82,7 @@ tauri-plugin-log = { version = "2" }
 tauri-plugin-dialog = "2.0.3"
 tauri-plugin-process = "2"
 tauri-plugin-shell = "2"
+async-trait = "0.1.83"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

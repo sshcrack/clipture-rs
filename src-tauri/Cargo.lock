@@ -719,6 +719,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "async-stream",
+ "async-trait",
  "crash-handler",
  "directories",
  "futures-core",
