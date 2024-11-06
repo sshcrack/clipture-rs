@@ -1,5 +1,5 @@
-# Tauri + React + Typescript
-
+# Clipture v2
+Smaller and new codebase! (WIP)
 ## Preparation
 ```
 cargo install cargo-obs-build
