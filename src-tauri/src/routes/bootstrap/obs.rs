@@ -2,7 +2,10 @@ use async_stream::stream;
 use futures_core::Stream;
 
 use crate::{
-    core::{game_detection::GameDetection, obs},
+    core::{
+        game_detection::{GameDetection, GameEvent, GameEventNotifier, WindowType},
+        obs::{self, runtime::run_with_obs, CaptureTrait},
+    },
     utils::consts::GAME_DETECTION,
 };
 
@@ -22,6 +25,7 @@ pub async fn bootstrap_obs() -> impl Stream<Item = BootstrapStatus> {
 
         yield BootstrapStatus::Progress(0.5, "Initializing Game Detector...".to_string());
 
+        log::debug!("Initializing Game Detector...");
         let detector = GameDetection::initialize().await;
         if let Err(e) = detector {
             log::error!("Error initializing Game Detector: {:?}", e);
@@ -29,11 +33,28 @@ pub async fn bootstrap_obs() -> impl Stream<Item = BootstrapStatus> {
             return;
         }
 
-        let mut detector = detector.unwrap();
-        let _ = detector.add_listener(Box::new(|event| {
-            log::info!("Game event: {:?}", event);
-        }));
+        let detector = detector.unwrap();
 
+        detector.add_listener(|event| async move {
+            match event {
+                GameEvent::Closed(window_info) => log::trace!("Game Closed: {}", window_info.obs_id),
+                GameEvent::Opened(window_type, window_info) => {
+                    match window_type {
+                        WindowType::Game => {
+                            log::trace!("Game Opened: {}", window_info.obs_id);
+                            let e = run_with_obs(|mgr| {
+                                mgr.switch_window(window_info)
+                            }).await;
+
+                            if let Err(e) = e {
+                                log::error!("Error running with OBS: {:?}", e);
+                            }
+                        },
+                        _ => {}
+                    }
+                }
+            }
+        }).await;
         GAME_DETECTION.write().await.replace(detector);
         yield BootstrapStatus::Done;
     }

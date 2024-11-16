@@ -4,7 +4,9 @@ use rspc::{Config, Router};
 
 mod auth;
 mod bootstrap;
+mod game_detect;
 
+use game_detect::game_detect;
 use auth::auth;
 use bootstrap::bootstrap;
 pub use bootstrap::BOOTSTRAP_DONE;
@@ -16,6 +18,7 @@ pub fn router() -> Arc<Router<()>> {
         ))
         .merge("auth.", auth())
         .merge("bootstrap.", bootstrap())
+        .merge("game_detect.", game_detect())
         .build()
         .arced()
 }

@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use crate::{
     json_typings::clipture_api::game::detection,
@@ -15,12 +15,14 @@ use super::{GameDetection, GAME_DETECTION_FILE, REFRESH_INTERVAL};
 pub(super) trait RefreshGameDetection {
     async fn fetch_game_detection() -> anyhow::Result<detection::Root>;
     /// Returns as an option the detection data and when the data should be refreshed again
-    async fn refresh() -> anyhow::Result<(Option<detection::Root>, Instant)>;
+    async fn refresh(force: bool) -> anyhow::Result<(Option<detection::Root>, Instant)>;
 
     async fn spawn_refresh_file_thread(
         token: CancellationToken,
         lock: Arc<RwLock<detection::Root>>,
     ) -> JoinHandle<()>;
+
+    async fn get_detection_file() -> anyhow::Result<PathBuf>;
 }
 
 #[async_trait]
@@ -31,7 +33,8 @@ impl RefreshGameDetection for GameDetection {
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
             loop {
-                let r = Self::refresh().await;
+                let data_len = lock.read().await.len();
+                let r = Self::refresh(data_len == 0).await;
                 if let Err(e) = r {
                     log::error!("Error refreshing game detection: {:?}", e);
                     tokio::time::sleep(Duration::from_secs(60)).await;
@@ -61,18 +64,25 @@ impl RefreshGameDetection for GameDetection {
         Ok(detection_data)
     }
 
-    async fn refresh() -> anyhow::Result<(Option<detection::Root>, Instant)> {
-        // Either file can be missing or it's time to refresh
+    async fn get_detection_file() -> anyhow::Result<PathBuf> {
         let app = app_handle().await;
         let data = app.path().app_data_dir()?;
         let detection_file = data.join(GAME_DETECTION_FILE);
 
+        Ok(detection_file)
+    }
+
+    async fn refresh(force: bool) -> anyhow::Result<(Option<detection::Root>, Instant)> {
+        // Either file can be missing or it's time to refresh
+
+        let detection_file = Self::get_detection_file().await?;
         let meta = fs::metadata(&detection_file).await;
         if let Ok(meta) = meta {
             let last_modified = meta.modified()?;
             let duration = last_modified.elapsed()?;
 
-            if duration <= *REFRESH_INTERVAL {
+            // If force, we ignore the duration and just overwrite the file
+            if duration <= *REFRESH_INTERVAL && !force {
                 return Ok((None, Instant::now() + (*REFRESH_INTERVAL - duration)));
             }
         }

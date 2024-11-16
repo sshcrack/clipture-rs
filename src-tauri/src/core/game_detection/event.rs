@@ -1,17 +1,27 @@
+use std::future::Future;
+
 use async_trait::async_trait;
 use libobs_window_helper::{get_all_windows, WindowInfo, WindowSearchMode};
-use tokio::{select, task::JoinHandle};
+use tokio::{pin, select, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
+use uuid::Uuid;
 
 use crate::{
     core::game_detection::{GameEvent, WindowType},
     json_typings::clipture_api::game::detection,
 };
 
-use super::{GameDetection, GameDetectionTypeRw, ListenersTypeRw};
+use super::{GameDetection, GameDetectionTypeRw, ListenerRef, ListenersTypeRw};
 
 #[async_trait]
 pub trait GameEventNotifier {
+    async fn add_listener<
+        F: Future<Output = ()> + Send + 'static,
+        T: (Fn(GameEvent) -> F) + Send + Sync + 'static,
+    >(
+        &self,
+        listener: T,
+    ) -> ListenerRef;
     fn get_window_type(info: &WindowInfo, data: &detection::Root) -> WindowType;
 
     async fn spawn_event_thread(
@@ -23,6 +33,22 @@ pub trait GameEventNotifier {
 
 #[async_trait]
 impl GameEventNotifier for GameDetection {
+    async fn add_listener<
+        F: Future<Output = ()> + Send + 'static,
+        T: (Fn(GameEvent) -> F) + Send + Sync + 'static,
+    >(
+        &self,
+        listener: T,
+    ) -> ListenerRef {
+        let token = Uuid::new_v4();
+        self.listeners.write().await.insert(token.clone(), Box::new(move |e| Box::new(Box::pin(listener(e)))));
+
+        ListenerRef {
+            key: token.clone(),
+            map: self.listeners.clone(),
+        }
+    }
+
     async fn spawn_event_thread(
         token: CancellationToken,
         listeners: ListenersTypeRw,
@@ -43,17 +69,24 @@ impl GameEventNotifier for GameDetection {
                 let listeners = listeners.read().await;
 
                 for window in windows.iter() {
-                    if !prev.contains(window) {
+                    if !prev.iter().any(|x: &WindowInfo| x.pid == window.pid) {
                         let window_type = Self::get_window_type(&window, &detection);
 
                         for listener in listeners.values() {
-                            listener(&GameEvent::Opened(window_type.clone(), window.clone()));
+                            let r =
+                                listener(GameEvent::Opened(window_type.clone(), window.clone()));
+                            pin!(r);
+
+                            r.await
                         }
                     }
 
-                    if !windows.contains(window) {
+                    if !windows.iter().any(|x: &WindowInfo| x.pid == window.pid) {
                         for listener in listeners.values() {
-                            listener(&GameEvent::Closed(window.clone()));
+                            let r = listener(GameEvent::Closed(window.clone()));
+                            pin!(r);
+
+                            r.await
                         }
                     }
                 }
@@ -68,24 +101,27 @@ impl GameEventNotifier for GameDetection {
     }
 
     fn get_window_type(window: &WindowInfo, data: &detection::Root) -> WindowType {
-        let mut window_type = WindowType::Window;
         for game in data.iter() {
             for exe in game.executables.iter() {
-                if !window.full_exe.ends_with(&exe.name) {
+                let full_exe = window.full_exe.to_lowercase().replace("\\", "/");
+                if !full_exe.ends_with(&exe.name.to_lowercase()) {
                     continue;
                 }
-
                 if let Some(args) = exe.arguments.as_ref() {
                     // Maybe if cmdline is not present, we should not check for it?
-                    if !window.cmd_line.as_ref().is_some_and(|e| e.contains(args)) {
+                    if !window
+                        .cmd_line
+                        .as_ref()
+                        .is_some_and(|e| e.to_lowercase().contains(&args.to_lowercase()))
+                    {
                         continue;
                     }
                 }
 
-                window_type = WindowType::Game;
+                return WindowType::Game;
             }
         }
 
-        window_type
+        return WindowType::Window;
     }
 }

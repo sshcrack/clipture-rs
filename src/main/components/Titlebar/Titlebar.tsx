@@ -11,7 +11,7 @@ export default function Titlebar() {
         appWindow.isMaximized().then(setIsMaximized)
     }, [appWindow])
     return <>
-        <div data-tauri-drag-region className="titlebar bg-gradient-to-r from-blue-400 via-violet-600 to-purple-600">
+        <div data-tauri-drag-region className="titlebar bg-slate-900 z-50">
             <div onClick={() => appWindow.minimize()} className="titlebar-button color-white hover:bg-white/[0.25] hover:ease-in duration-100" id="titlebar-minimize">
                 <VscChromeMinimize />
             </div>
@@ -26,6 +26,5 @@ export default function Titlebar() {
                 <VscChromeClose />
             </div>
         </div>
-        <div className='titlebar-spacer' />
     </>
 }

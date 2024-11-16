@@ -14,17 +14,18 @@ tauri-build = { version = "2", features = [] }
 # Async Runtime
 tokio = { version = "1.41.0", features = ["full"] }
 async-stream = "0.3.6"
+async-trait = "0.1.83"
 tauri = { version = "2", features = [] }
 futures-core = "0.3.31"
 futures-util = "0.3.31"
-
+tokio-util = "0.7.12"
 
 # OBS
 libobs-wrapper = { path = "../../libobs-rs/libobs-wrapper", features = [
     "unsafe-send",
 ] }
 libobs-sources = { path = "../../libobs-rs/libobs-sources" }
-libobs-window-helper = { path = "../../libobs-rs/libobs-window-helper", features = ["serde"] }
+libobs-window-helper = { path = "../../libobs-rs/libobs-window-helper", features = ["serde", "specta"] }
 
 
 serde = { version = "1", features = ["derive"] }
@@ -82,8 +83,8 @@ tauri-plugin-log = { version = "2" }
 tauri-plugin-dialog = "2.0.3"
 tauri-plugin-process = "2"
 tauri-plugin-shell = "2"
-async-trait = "0.1.83"
-tokio-util = "0.7.12"
+
+windows-icons = "0.1.1"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

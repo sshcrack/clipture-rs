@@ -1,106 +1,100 @@
 use std::sync::Arc;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use lazy_static::lazy_static;
-use libobs_wrapper::context::ObsContext;
+use log::debug;
 use tauri::async_runtime::JoinHandle;
 use tokio::sync::{
     mpsc::{self, UnboundedSender},
-    oneshot, Mutex,
+    oneshot, Mutex, RwLock,
 };
 
-use super::initialize_obs;
+use super::ObsManager;
+
+pub struct RunObsFunc(pub Box<dyn FnOnce(&mut ObsManager) + Send>);
+unsafe impl Sync for RunObsFunc {}
 
 pub struct ObsRuntime {
-    _handle: JoinHandle<()>,
-    ctx: Option<ObsContext>,
+    handle: Option<JoinHandle<()>>,
 }
 
 impl ObsRuntime {
-    fn new() -> (Self, UnboundedSender<Box<dyn FnOnce() + Send>>) {
-        let (tx, mut rx) = mpsc::unbounded_channel();
+    fn new() -> Self {
+        Self { handle: None }
+    }
 
-        let handle = tauri::async_runtime::spawn_blocking(move || loop {
-            let f: Option<Box<dyn FnOnce() + Send>> = rx.blocking_recv();
+    /// ONLY RUN ON OBS THREAD
+    async fn startup(&mut self) -> anyhow::Result<UnboundedSender<RunObsFunc>> {
+        if self.handle.is_some() {
+            bail!("OBS is already running");
+        }
 
-            if f.is_none() {
+        let (tx, mut rx) = mpsc::unbounded_channel::<RunObsFunc>();
+
+        let (init_tx, init_rx) = oneshot::channel();
+        let h = tauri::async_runtime::spawn_blocking(move || {
+            let ctx = ObsManager::initialize_obs();
+            if let Err(e) = ctx {
+                let _ = init_tx.send(Err(e));
                 return;
             }
 
-            f.unwrap()();
+            let mut ctx = ctx.unwrap();
+            init_tx.send(Ok(())).unwrap();
+            loop {
+                let f: Option<RunObsFunc> = rx.blocking_recv();
+
+                if f.is_none() {
+                    return;
+                }
+
+                f.unwrap().0(&mut ctx);
+            }
         });
 
-        (
-            Self {
-                _handle: handle,
-                ctx: None,
-            },
-            tx,
-        )
-    }
+        self.handle = Some(h);
+        init_rx.await??;
 
-    fn startup(&mut self) -> anyhow::Result<()> {
-        if self.ctx.is_some() {
-            return Ok(());
-        }
-
-        let ctx = initialize_obs("recording.mp4")?;
-        self.ctx = Some(ctx);
-
-        Ok(())
+        Ok(tx)
     }
 }
 
 lazy_static! {
-    static ref __OBS_RUNTIME: Arc<Mutex<(ObsRuntime, UnboundedSender<Box<dyn FnOnce() + Send>>)>> =
-        Arc::new(Mutex::new(ObsRuntime::new()));
+    static ref __OBS_RUNTIME: Arc<Mutex<ObsRuntime>> = Arc::new(Mutex::new(ObsRuntime::new()));
+    static ref __OBS_RUNTIME_SENDER: Arc<RwLock<Option<UnboundedSender<RunObsFunc>>>> =
+        Arc::new(RwLock::new(None));
 }
 
 pub async fn startup_obs() -> anyhow::Result<()> {
-    let (tx, rx) = oneshot::channel();
-    run_on_obs_thread(|| {
-        let mut obs = __OBS_RUNTIME.blocking_lock();
+    debug!("Starting OBS runtime");
+    let sender = __OBS_RUNTIME.lock().await.startup().await?;
 
-        let r = obs.0.startup();
-        let _ = tx.send(r);
-    })
-    .await?;
+    debug!("Writing sender...");
+    __OBS_RUNTIME_SENDER.write().await.replace(sender);
 
-    rx.await??;
+    debug!("Done.");
     Ok(())
 }
 
-pub async fn run_on_obs_thread<F: FnOnce() + Send + 'static>(f: F) -> anyhow::Result<()> {
-    __OBS_RUNTIME
-        .lock()
-        .await
-        .1
-        .send(Box::new(f))
-        .map_err(|e| anyhow!("{}", e.to_string()))?;
-
-    Ok(())
-}
-
-#[allow(dead_code)]
 pub async fn run_with_obs<
     T: Send + 'static,
-    F: FnOnce(&mut ObsContext) -> anyhow::Result<T> + Send + 'static,
+    F: FnOnce(&mut ObsManager) -> anyhow::Result<T> + Send + 'static,
 >(
     f: F,
 ) -> anyhow::Result<T> {
     let (tx, rx) = oneshot::channel();
-    run_on_obs_thread(|| {
-        let mut obs = __OBS_RUNTIME.blocking_lock();
 
-        let ctx = obs
-            .0
-            .ctx
-            .as_mut()
-            .expect("Should not call run_with_obs before startup");
-
+    let f = move |ctx: &mut ObsManager| {
         let _ = tx.send(f(ctx));
-    })
-    .await?;
+    };
 
-    rx.await.unwrap()
+    __OBS_RUNTIME_SENDER
+        .read()
+        .await
+        .as_ref()
+        .expect("OBS must be initialized to run on obs thread")
+        .send(RunObsFunc(Box::new(f)))
+        .map_err(|e| anyhow!("{}", e.to_string()))?;
+
+    Ok(rx.await??)
 }

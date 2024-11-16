@@ -9,10 +9,26 @@ export type Procedures = {
         { key: "auth.sign_in", input: never, result: null } | 
         { key: "auth.sign_out", input: never, result: null },
     subscriptions: 
-        { key: "bootstrap.initialize", input: never, result: BootstrapStatus }
+        { key: "bootstrap.initialize", input: never, result: BootstrapStatus } | 
+        { key: "game_detect.game_open", input: never, result: GameEvent }
 };
 
 /**
  * 
  */
 export type BootstrapStatus = { Error: string } | { Progress: [number, string] } | "Done"
+
+/**
+ * 
+ */
+export type GameEvent = { Closed: WindowInfo } | { Opened: [WindowType, WindowInfo] }
+
+/**
+ * 
+ */
+export type WindowType = "Game" | "Window"
+
+/**
+ * Represents information about a window.
+ */
+export type WindowInfo = { full_exe: string; obs_id: string; pid: number; title: string | null; class: string | null; product_name: string | null; monitor: string | null; intersects: boolean | null; cmd_line: string | null; is_game: boolean }
