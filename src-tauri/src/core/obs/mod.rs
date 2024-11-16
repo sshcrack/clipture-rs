@@ -75,4 +75,8 @@ impl ObsManager {
             capture_source: window_capture,
         })
     }
+
+    pub fn context(&mut self) -> &mut ObsContext {
+        &mut self.ctx
+    }
 }

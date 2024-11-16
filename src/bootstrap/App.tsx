@@ -37,7 +37,7 @@ export default function BootstrapApp() {
                 }
 
                 if ("Error" in data) {
-                    console.log("Received error")
+                    console.error("Received error", data["Error"])
                     toast.error(data["Error"])
                 }
             }

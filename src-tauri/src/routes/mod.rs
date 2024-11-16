@@ -5,11 +5,12 @@ use rspc::{Config, Router};
 mod auth;
 mod bootstrap;
 mod game_detect;
+mod obs;
 
-use game_detect::game_detect;
 use auth::auth;
 use bootstrap::bootstrap;
 pub use bootstrap::BOOTSTRAP_DONE;
+use game_detect::game_detect;
 
 pub fn router() -> Arc<Router<()>> {
     <Router>::new()
@@ -19,6 +20,7 @@ pub fn router() -> Arc<Router<()>> {
         .merge("auth.", auth())
         .merge("bootstrap.", bootstrap())
         .merge("game_detect.", game_detect())
+        .merge("obs.", obs::obs())
         .build()
         .arced()
 }

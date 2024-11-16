@@ -3,6 +3,7 @@ use std::sync::Arc;
 use anyhow::{anyhow, bail};
 use lazy_static::lazy_static;
 use log::debug;
+use rspc::ErrorCode;
 use tauri::async_runtime::JoinHandle;
 use tokio::sync::{
     mpsc::{self, UnboundedSender},
@@ -78,10 +79,11 @@ pub async fn startup_obs() -> anyhow::Result<()> {
 
 pub async fn run_with_obs<
     T: Send + 'static,
-    F: FnOnce(&mut ObsManager) -> anyhow::Result<T> + Send + 'static,
+    E: Send + 'static + Sync,
+    F: FnOnce(&mut ObsManager) -> Result<T, E> + Send + 'static,
 >(
     f: F,
-) -> anyhow::Result<T> {
+) -> anyhow::Result<Result<T, E>> {
     let (tx, rx) = oneshot::channel();
 
     let f = move |ctx: &mut ObsManager| {
@@ -96,5 +98,19 @@ pub async fn run_with_obs<
         .send(RunObsFunc(Box::new(f)))
         .map_err(|e| anyhow!("{}", e.to_string()))?;
 
-    Ok(rx.await??)
+    Ok(rx.await?)
+}
+
+pub async fn run_with_obs_rspc<
+    T: Send + 'static,
+    F: FnOnce(&mut ObsManager) -> Result<T, rspc::Error> + Send + 'static,
+>(
+    f: F,
+) -> Result<T, rspc::Error> {
+    run_with_obs(f).await.map_err(|e| {
+        rspc::Error::new(
+            ErrorCode::InternalServerError,
+            format!("OneShot Channel closed: {:?}", e),
+        )
+    })?
 }

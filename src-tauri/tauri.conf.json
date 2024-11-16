@@ -46,7 +46,8 @@
         "visible": false,
         "focus": false,
         "url": "src/main.html",
-        "decorations": false
+        "decorations": false,
+        "create": false
       },
       {
         "title": "Bootstrap",

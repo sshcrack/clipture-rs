@@ -7,7 +7,11 @@ export type Procedures = {
         { key: "bootstrap.show_main", input: never, result: null },
     mutations: 
         { key: "auth.sign_in", input: never, result: null } | 
-        { key: "auth.sign_out", input: never, result: null },
+        { key: "auth.sign_out", input: never, result: null } | 
+        { key: "obs.preview.create", input: ObsPreviewCreation, result: number } | 
+        { key: "obs.preview.destroy", input: number, result: null } | 
+        { key: "obs.preview.set_pos", input: ObsPositionPayload, result: null } | 
+        { key: "obs.preview.set_size", input: ObsSizePayload, result: null },
     subscriptions: 
         { key: "bootstrap.initialize", input: never, result: BootstrapStatus } | 
         { key: "game_detect.game_open", input: never, result: GameEvent }
@@ -16,7 +20,22 @@ export type Procedures = {
 /**
  * 
  */
+export type ObsPreviewCreation = { window_label: string; x: number; y: number; width: number; height: number; background_color: number | null }
+
+/**
+ * 
+ */
 export type BootstrapStatus = { Error: string } | { Progress: [number, string] } | "Done"
+
+/**
+ * 
+ */
+export type ObsPositionPayload = { id: number; x: number; y: number }
+
+/**
+ * 
+ */
+export type ObsSizePayload = { id: number; width: number; height: number }
 
 /**
  * 

@@ -828,6 +828,7 @@ dependencies = [
  "tokio-util",
  "uuid",
  "whoami",
+ "windows 0.58.0",
  "windows-icons",
 ]
 
