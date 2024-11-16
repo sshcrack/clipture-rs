@@ -66,9 +66,17 @@ impl ObsManager {
         output.audio_encoder(audio_info, 0, audio_handler)?;
 
         let mut scene = context.scene("Main Scene");
-        let window_capture = WindowCaptureSourceBuilder::new("window_capture").build();
+        let mut window_capture = WindowCaptureSourceBuilder::new("window_capture");
 
-        let window_capture = scene.add_source(window_capture)?;
+        let t = WindowCaptureSourceBuilder::get_windows(
+            libobs_window_helper::WindowSearchMode::IncludeMinimized,
+        )
+        .unwrap();
+
+        let window = t.iter().find(|w| w.obs_id.to_lowercase().contains("code")).unwrap();
+        window_capture = window_capture.set_window(window);
+
+        let window_capture = scene.add_source(window_capture.build())?;
 
         Ok(ObsManager {
             ctx: context,

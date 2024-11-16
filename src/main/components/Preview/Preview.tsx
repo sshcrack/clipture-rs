@@ -44,27 +44,30 @@ export default function Preview(props: DetailedHTMLProps<HTMLAttributes<HTMLDivE
         resize.observe(ref.current)
 
         let destroyOld = false
-        console.log(`Creating display with label '${label}'`)
-        client.mutation(["obs.preview.create", {
-            window_label: label,
-            x: rect.x,
-            y: rect.y,
-            width: rect.width,
-            height: rect.height,
-            background_color: 0
-        }]).then(id => {
-            id = id
+        const timeoutId = setTimeout(() => {
+            console.log(`Creating display with label '${label}'`)
+            client.mutation(["obs.preview.create", {
+                window_label: label,
+                x: rect.x,
+                y: rect.y,
+                width: rect.width,
+                height: rect.height,
+                background_color: 0
+            }]).then(id => {
+                id = id
 
-            // If this response wasn't fast enough and it should be destroyed immediately again
-            if (destroyOld) {
-                client.mutation(["obs.preview.destroy", id])
-                    .then(() => console.log("Display has been destroyed with id", id))
-                    .catch(e => console.error("Couldn't destroy display with id", id, e))
-            }
-        })
-            .catch(e => console.error("Couldn't create display", e))
+                // If this response wasn't fast enough and it should be destroyed immediately again
+                if (destroyOld) {
+                    client.mutation(["obs.preview.destroy", id])
+                        .then(() => console.log("Display has been destroyed with id", id))
+                        .catch(e => console.error("Couldn't destroy display with id", id, e))
+                }
+            })
+                .catch(e => console.error("Couldn't create display", e))
+        }, 200)
 
         return () => {
+            clearTimeout(timeoutId)
             resize.disconnect()
             document.removeEventListener("scroll", reposition)
             destroyOld = true
@@ -74,7 +77,7 @@ export default function Preview(props: DetailedHTMLProps<HTMLAttributes<HTMLDivE
                     .catch(e => console.error("Couldn't destroy display with id", id, e))
             }
         }
-    }, [ref])
+    }, [])
 
     return <div {...props} ref={ref}>
         <div className="w-full h-full bg-gray-800 flex items-center justify-center">

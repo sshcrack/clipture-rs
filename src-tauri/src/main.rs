@@ -1,19 +1,19 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
-#![cfg_attr(not(any(debug_assertions, feature="show-console")), windows_subsystem = "windows")]
+#![cfg_attr(
+    not(any(debug_assertions, feature = "show-console")),
+    windows_subsystem = "windows"
+)]
 
 use std::{
     env::{current_exe, set_current_dir},
     process,
-    sync::atomic::Ordering,
 };
 
 use anyhow::Context;
+use tauri::Manager;
 use core::auth::{AuthManager, AUTH_MANAGER};
-use routes::BOOTSTRAP_DONE;
-use tauri::{Manager, WindowEvent};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_log as t_log;
-use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 use utils::{consts::APP_HANDLE, crash_handler};
 
 mod core;

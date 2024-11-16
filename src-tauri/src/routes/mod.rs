@@ -9,7 +9,6 @@ mod obs;
 
 use auth::auth;
 use bootstrap::bootstrap;
-pub use bootstrap::BOOTSTRAP_DONE;
 use game_detect::game_detect;
 
 pub fn router() -> Arc<Router<()>> {

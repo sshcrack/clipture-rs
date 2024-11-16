@@ -11,7 +11,6 @@ import Preview from './components/Preview/Preview';
 // Maybe use ParkUI?
 function App() {
   useEffect(() => {
-    console.log("Subscribing to game_detect.game_open")
     client.addSubscription(["game_detect.game_open"], {
       onData: (data) => {
         console.log(data)
@@ -23,7 +22,7 @@ function App() {
         console.log("Subscription started")
       },
     })
-    console.log("Restoring state")
+
     restoreStateCurrent(StateFlags.POSITION | StateFlags.SIZE | StateFlags.MAXIMIZED)
   }, [])
 

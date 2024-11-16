@@ -1,3 +1,5 @@
+use std::pin::Pin;
+
 use libobs_wrapper::display::{ObsDisplayCreationData, ObsDisplayRef, WindowPositionTrait};
 use rspc::{Error as RError, ErrorCode, Router, RouterBuilder};
 use serde::{Deserialize, Serialize};
@@ -10,7 +12,10 @@ use crate::{
 };
 
 pub type DisplayId = u32;
-fn get_display(mgr: &mut ObsManager, id: DisplayId) -> Result<&mut ObsDisplayRef, rspc::Error> {
+fn get_display(
+    mgr: &mut ObsManager,
+    id: DisplayId,
+) -> Result<&mut Pin<Box<ObsDisplayRef>>, rspc::Error> {
     let id: usize = id.try_into().map_err(|_| {
         RError::new(
             ErrorCode::BadRequest,
@@ -87,6 +92,7 @@ pub fn preview() -> RouterBuilder {
                         )
                     })?;
 
+                    log::debug!("Display created with id: {}", display.id());
                     let converted = u32::try_from(display.id());
                     match converted {
                         Ok(id) => Ok(id),
