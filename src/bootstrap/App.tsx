@@ -57,7 +57,7 @@ export default function BootstrapApp() {
                     setShowLogin(true)
                 } else {
                     console.log("Opening main screen")
-                    client.query(["bootstrap.show_main"])
+                    client.query(["bootstrap.show_or_create_main"])
                 }
             })
             .catch(e => {
@@ -91,7 +91,7 @@ export default function BootstrapApp() {
             client.mutation(["auth.sign_in"])
                 .then(() => {
                     console.log("Done logging in. Showing main screen")
-                    client.query(["bootstrap.show_main"])
+                    client.query(["bootstrap.show_or_create_main"])
                 })
                 .catch(e => {
                     if (typeof e == "object" && typeof e["message"] === "string") {

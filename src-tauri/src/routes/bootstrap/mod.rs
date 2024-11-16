@@ -20,9 +20,12 @@ use specta::Type;
 use tauri::{process::current_binary, Manager};
 use tokio::{fs::remove_file, sync::broadcast};
 use verify::verify_installation;
-use window::open_main_window;
+use window::{create_main_window, open_main_window};
 
-use crate::utils::{consts::APP_HANDLE, util::AtomicDropGuard};
+use crate::utils::{
+    consts::{app_handle, APP_HANDLE},
+    util::AtomicDropGuard,
+};
 
 mod download;
 mod extract;
@@ -220,9 +223,16 @@ pub fn bootstrap() -> RouterBuilder {
                 }
             })
         })
-        .query("show_main", |t| {
+        .query("show_or_create_main", |t| {
             t(|_ctx, _input: ()| async {
-                let r = open_main_window().await;
+                let handle = app_handle().await;
+                let exists = handle.webview_windows().get("main").is_some();
+
+                let r = if exists {
+                    open_main_window().await
+                } else {
+                    create_main_window().await
+                };
                 if let Err(e) = r {
                     log::error!("Error opening main window: {:?}", e);
                     return Err(rspc::Error::new(

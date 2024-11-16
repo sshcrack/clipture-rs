@@ -88,35 +88,6 @@ fn main() -> anyhow::Result<()> {
 
             Ok(())
         })
-        .on_window_event(|w, event| match event {
-            WindowEvent::CloseRequested { .. } => {
-                if w.label() == "bootstrap" {
-                    if BOOTSTRAP_DONE.load(Ordering::Relaxed) {
-                        return;
-                    }
-
-                    let main = w.get_webview_window("main");
-                    if let Some(main) = main {
-                        let e = main.close();
-                        if let Err(e) = e {
-                            log::warn!("Error closing main window: {:?}", e);
-                        }
-                    }
-                }
-
-                if w.label() != "main" {
-                    return;
-                }
-
-                let e = w
-                    .app_handle()
-                    .save_window_state(StateFlags::SIZE | StateFlags::POSITION);
-                if let Err(e) = e {
-                    log::warn!("Error saving window state: {:?}", e);
-                }
-            }
-            _ => {}
-        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 
