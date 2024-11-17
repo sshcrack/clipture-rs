@@ -1,3 +1,6 @@
+# Archived
+This repository is being archived because of Steam's new [in-game recording feature](https://store.steampowered.com/gamerecording).
+
 # Clipture v2
 Smaller and new codebase! (WIP)
 ## Preparation
