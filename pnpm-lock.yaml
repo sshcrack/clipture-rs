@@ -6,10 +6,10 @@ settings:
 
 patchedDependencies:
   '@rspc/client@0.2.4':
-    hash: cgmwcer7xvb2y6g2nr66wmxeza
+    hash: db83e84a8a022b72ce55a73d5651a21302d9d6d7d7d33768a05e9e110afb766c
     path: patches/@rspc__client@0.2.4.patch
   '@rspc/tauri@0.2.0':
-    hash: msgrvxynhdfgejw2emmxd5y2ba
+    hash: e5888f694a08e6fcc980afed48993c03d1d175188c32c4ce111b8a2077f687fb
     path: patches/@rspc__tauri@0.2.0.patch
 
 importers:
@@ -21,10 +21,10 @@ importers:
         version: 2.4.8(@types/react@18.3.12)(framer-motion@11.11.10(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tailwindcss@3.4.14)
       '@rspc/client':
         specifier: ^0.2.4
-        version: 0.2.4(patch_hash=cgmwcer7xvb2y6g2nr66wmxeza)
+        version: 0.2.4(patch_hash=db83e84a8a022b72ce55a73d5651a21302d9d6d7d7d33768a05e9e110afb766c)
       '@rspc/tauri':
         specifier: ^0.2.0
-        version: 0.2.0(patch_hash=msgrvxynhdfgejw2emmxd5y2ba)(@tauri-apps/api@2.0.0)
+        version: 0.2.0(patch_hash=e5888f694a08e6fcc980afed48993c03d1d175188c32c4ce111b8a2077f687fb)(@tauri-apps/api@2.0.0)
       '@tauri-apps/api':
         specifier: 2.0.0
         version: 2.0.0
@@ -4673,9 +4673,9 @@ snapshots:
 
   '@rspc/client@0.2.0': {}
 
-  '@rspc/client@0.2.4(patch_hash=cgmwcer7xvb2y6g2nr66wmxeza)': {}
+  '@rspc/client@0.2.4(patch_hash=db83e84a8a022b72ce55a73d5651a21302d9d6d7d7d33768a05e9e110afb766c)': {}
 
-  '@rspc/tauri@0.2.0(patch_hash=msgrvxynhdfgejw2emmxd5y2ba)(@tauri-apps/api@2.0.0)':
+  '@rspc/tauri@0.2.0(patch_hash=e5888f694a08e6fcc980afed48993c03d1d175188c32c4ce111b8a2077f687fb)(@tauri-apps/api@2.0.0)':
     dependencies:
       '@rspc/client': 0.2.0
       '@tauri-apps/api': 2.0.0

@@ -79,7 +79,7 @@ pub fn preview() -> RouterBuilder {
                     })?;
 
                     let mut creation =
-                        ObsDisplayCreationData::new(hwnd, data.x, data.y, data.width, data.height);
+                        ObsDisplayCreationData::new(hwnd.0 as isize, data.x, data.y, data.width, data.height);
                     if let Some(c) = data.background_color {
                         creation = creation.set_background_color(c);
                     }

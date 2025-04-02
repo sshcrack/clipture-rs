@@ -40,6 +40,9 @@
     "patchedDependencies": {
       "@rspc/tauri@0.2.0": "patches/@rspc__tauri@0.2.0.patch",
       "@rspc/client@0.2.4": "patches/@rspc__client@0.2.4.patch"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

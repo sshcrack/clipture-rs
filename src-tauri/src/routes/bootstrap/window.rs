@@ -57,22 +57,6 @@ pub async fn create_main_window() -> anyhow::Result<()> {
 
     rx.await??;
 
-    let w = handle
-        .get_webview_window("main")
-        .expect("Should have main window");
-
-    run_with_obs(move |mgr| {
-        let ctx = mgr.context();
-        let hwnd = w.hwnd().unwrap();
-        let x = ctx.display(ObsDisplayCreationData::new(hwnd, 0, 0, 800, 600)).unwrap();
-
-        println!("Created display {:?}", x.id());
-        anyhow::Ok(())
-    })
-    .await
-    .unwrap()
-    .unwrap();
-
     println!("Done!");
     Ok(())
 }

@@ -10,7 +10,7 @@ pub struct ObsManager {
     capture_source: ObsSourceRef,
 }
 
-use libobs_sources::windows::WindowCaptureSourceBuilder;
+use libobs_sources::windows::{MonitorCaptureSourceBuilder, WindowCaptureSourceBuilder};
 use libobs_wrapper::{
     data::{ObsData, ObsObjectBuilder},
     encoders::ObsContextEncoders,
@@ -66,15 +66,17 @@ impl ObsManager {
         output.audio_encoder(audio_info, 0, audio_handler)?;
 
         let mut scene = context.scene("Main Scene");
-        let mut window_capture = WindowCaptureSourceBuilder::new("window_capture");
+        let mut window_capture = MonitorCaptureSourceBuilder::new("window_capture")
+            .set_monitor(&MonitorCaptureSourceBuilder::get_monitors().unwrap()[1]);
 
         let t = WindowCaptureSourceBuilder::get_windows(
             libobs_window_helper::WindowSearchMode::IncludeMinimized,
         )
         .unwrap();
 
-        let window = t.iter().find(|w| w.obs_id.to_lowercase().contains("code")).unwrap();
-        window_capture = window_capture.set_window(window);
+        let window = t.iter().find(|w| w.obs_id.to_lowercase().contains("code.exe")).unwrap();
+        println!("Found window: {:?}", window);
+        //window_capture = window_capture.set_window(window);
 
         let window_capture = scene.add_source(window_capture.build())?;
 
