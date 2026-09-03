@@ -1,110 +1,59 @@
 [package]
 name = "clipture"
-version = "0.0.0"
-description = "A Tauri App"
+version = "0.1.0"
+description = "Low-friction game capture powered by libobs-rs"
 authors = ["sshcrack"]
-edition = "2021"
+edition = "2024"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "clipture_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "clipture"
+path = "src/main.rs"
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2.5", features = [] }
+libobs-bootstrapper = { git = "https://github.com/libobs-rs/libobs-rs", branch = "main" }
 
 [dependencies]
-# Async Runtime
-tokio = { version = "1.41.0", features = ["full"] }
-async-stream = "0.3.6"
-async-trait = "0.1.83"
-tauri = { version = "2", features = [] }
-futures-core = "0.3.31"
-futures-util = "0.3.31"
-tokio-util = "0.7.12"
-
-# OBS
-libobs-wrapper = { path = "../../libobs-rs/libobs-wrapper", features = [
-    "unsafe-send",
-] }
-libobs-sources = { path = "../../libobs-rs/libobs-sources" }
-libobs-window-helper = { path = "../../libobs-rs/libobs-window-helper", features = ["serde", "specta"] }
-
-
+anyhow = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+crossbeam-channel = "0.5"
+directories = "6"
+display-info = "0.5"
+ffmpeg-sidecar = "2"
+log = "0.4"
+parking_lot = "0.12"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-anyhow = { version = "1.0.92", features = ["backtrace"] }
+thiserror = "2"
+tokio = { version = "1.49", features = ["rt-multi-thread", "macros", "time", "sync", "fs", "process"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+walkdir = "2"
 
-# Crash Handling
-crash-handler = "0.6.2"
-minidumper = "0.8.3"
+# The application intentionally follows upstream main. libobs-rs is maintained alongside Clipture.
+libobs-simple = { git = "https://github.com/libobs-rs/libobs-rs", branch = "main" }
+libobs-wrapper = { git = "https://github.com/libobs-rs/libobs-rs", branch = "main", default-features = false, features = ["enable_runtime", "logging_crash_handler"] }
+libobs-window-helper = { git = "https://github.com/libobs-rs/libobs-rs", branch = "main" }
+libobs-bootstrapper = { git = "https://github.com/libobs-rs/libobs-rs", branch = "main" }
 
-directories = "5.0.1"
-lazy_static = "1.5.0"
-log = "0.4.22"
-
-
-# RPC and Specta
-rspc = { version = "0.2.0", features = [
-    "specta2",
-] } # <- The specta2 feature is what makes this all work
-rspc-tauri2 = { git = "https://github.com/sshcrack/tauri2-tauri-update" }
-tauri-specta = { version = "2.0.0-rc.20", features = [
-    "javascript",
-    "typescript",
-] }
-specta = { package = "specta", version = "=2.0.0-rc.20", features = [
-    "serde",
-    "interop",
-] }
-
-
-# For OBS extraction
-sevenz-rust = "0.6.1"
-reqwest = { version = "0.12.9", features = ["json", "stream"] }
-hex = "0.4.3"
-sha2 = "0.10.8"
-semver = "1.0.23"
-
-
-# Api AUTH
-keyring = { version = "3", features = [
-    "apple-native",
-    "windows-native",
-    "sync-secret-service",
-] }
-open = "5.3.0"
-uuid = { version = "1.11.0", features = ["v4"] }
-whoami = "1.5.2"
-
-
-# Tauri Plugins
-tauri-plugin-deep-link = "2"
-tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
-tauri-plugin-window-state = "2"
-tauri-plugin-log = { version = "2" }
-tauri-plugin-dialog = "2.0.3"
-tauri-plugin-process = "2"
-tauri-plugin-shell = "2"
-
+tauri = { version = "2.11", features = ["tray-icon", "protocol-asset"] }
+tauri-plugin-autostart = "2.5"
+tauri-plugin-dialog = "2.7"
+tauri-plugin-global-shortcut = "2.3"
+tauri-plugin-log = "2.9"
+tauri-plugin-notification = "2.4"
+tauri-plugin-opener = "2.5"
 
 [target.'cfg(windows)'.dependencies]
-windows-icons = "0.1.1"
-windows = {version="0.61.1", features = ["Win32_Foundation", "Win32_Graphics_Dwm", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_System_SystemInformation", "Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Diagnostics_Debug"] }
 
-[features]
-# This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
-custom-protocol = ["tauri/custom-protocol"]
-show-console = []
-
-[profile.dev]
-incremental = true # Compile your binary in smaller steps.
+[dev-dependencies]
+tempfile = "3"
 
 [profile.release]
-codegen-units = 1 # Allows LLVM to perform better optimization.
-lto = true        # Enables link-time-optimizations.
-opt-level = "s"   # Prioritizes small binary size. Use `3` if you prefer speed.
-strip = true      # Ensures debug symbols are removed.
-
-# I know these do nothing in a Cargo workspace but this should help if people copy this example.
-[patch.crates-io]
-# Interop support
-specta = { git = "https://github.com/oscartbeaumont/specta", tag = "v2.0.0-rc.20" }
-rspc = { git = "https://github.com/sshcrack/rspc", branch = "specta-update" }
+lto = true
+codegen-units = 1
+strip = true

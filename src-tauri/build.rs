@@ -1,3 +1,4 @@
 fn main() {
-    tauri_build::build()
+    libobs_bootstrapper::build::emit_windows_obs_delay_load();
+    tauri_build::build();
 }

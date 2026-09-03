@@ -1,9 +1,35 @@
 {
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Clipture",
+  "version": "0.1.0",
+  "identifier": "me.sshcrack.clipture",
   "build": {
-    "beforeDevCommand": "node src-tauri/scripts/before_dev.js && pnpm dev",
-    "beforeBuildCommand": "node src-tauri/scripts/before_build.js && pnpm build",
-    "frontendDist": "../dist",
-    "devUrl": "http://localhost:1420"
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Clipture",
+        "width": 1180,
+        "height": 760,
+        "minWidth": 880,
+        "minHeight": 620,
+        "center": true,
+        "decorations": true,
+        "transparent": false
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": []
+      }
+    }
   },
   "bundle": {
     "active": true,
@@ -14,52 +40,6 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ],
-    "resources": {
-      "./resources/obs.dll": "./obs.dll.disabled",
-      "./resources/installation-updater.exe": "./installation-updater.exe"
-    }
-  },
-  "productName": "Clipture",
-  "mainBinaryName": "clipture",
-  "version": "0.0.0",
-  "identifier": "me.sshcrack.clipture",
-  "plugins": {
-    "deep-link": {
-      "desktop": {
-        "schemes": [
-          "clipture"
-        ]
-      }
-    }
-  },
-  "app": {
-    "security": {
-      "csp": null
-    },
-    "windows": [
-      {
-        "title": "Clipture",
-        "label": "main",
-        "width": 800,
-        "height": 600,
-        "focus": false,
-        "url": "src/main.html",
-        "decorations": false,
-        "create": false
-      },
-      {
-        "title": "Bootstrap",
-        "label": "bootstrap",
-        "center": true,
-        "closable": false,
-        "resizable": false,
-        "width": 300,
-        "height": 150,
-        "maximizable": false,
-        "decorations": false,
-        "url": "src/bootstrap.html"
-      }
     ]
   }
 }
