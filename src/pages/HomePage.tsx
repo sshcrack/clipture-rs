@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import type { AppSettings, CaptureSnapshot, CaptureSource, LibraryItem } from "../lib/types";
+import { ObsPreview } from "../components/ObsPreview";
 
 function duration(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -36,6 +37,7 @@ export function HomePage({
   onToggleRecording,
   onSelectSource,
   onOpenLibrary,
+  previewEnabled,
 }: {
   capture: CaptureSnapshot;
   settings: AppSettings;
@@ -46,6 +48,7 @@ export function HomePage({
   onToggleRecording: () => void;
   onSelectSource: (source: CaptureSource) => void;
   onOpenLibrary: () => void;
+  previewEnabled: boolean;
 }) {
   const [now, setNow] = useState(Date.now());
   const [sourceOpen, setSourceOpen] = useState(false);
@@ -94,11 +97,16 @@ export function HomePage({
           <span className={`live-badge ${capture.recordingActive ? "recording" : ""}`}><i />{capture.recordingActive ? `REC ${recordingTime}` : capture.replayActive ? "REPLAY READY" : "IDLE"}</span>
           <span>{capture.outputResolution} · {capture.fps} FPS</span>
         </div>
-        <div className="stage-center">
-          <div className="source-glyph">{sourceIcon}</div>
-          <h2>{capture.source?.label ?? "Choose what to capture"}</h2>
-          <p>{capture.source?.subtitle ?? "Pick a game, window, or monitor."}</p>
-        </div>
+        <ObsPreview
+          active={previewEnabled && Boolean(capture.source) && capture.phase !== "error"}
+          aspectRatio={settings.recording.width / Math.max(1, settings.recording.height)}
+        >
+          <div className="stage-center">
+            <div className="source-glyph">{sourceIcon}</div>
+            <h2>{capture.source?.label ?? "Choose what to capture"}</h2>
+            <p>{capture.source?.subtitle ?? "Pick a game, window, or monitor."}</p>
+          </div>
+        </ObsPreview>
         <div className="capture-rail">
           <div className="rail-labels"><span>−{settings.replay.preRollSeconds}s</span><span className="rail-now">hotkey</span><span>+{settings.replay.postRollSeconds}s</span></div>
           <div className="rail-track"><div className="rail-buffer" /><div className="rail-marker" style={{ left: marker }}><i /></div><div className="rail-post" style={{ left: marker }} /></div>

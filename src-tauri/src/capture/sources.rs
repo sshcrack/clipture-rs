@@ -103,18 +103,18 @@ pub fn resolve_auto(method: CaptureMethod) -> Option<CaptureSource> {
     #[cfg(not(windows))]
     let foreground: Option<u32> = None;
 
+    if method == CaptureMethod::Monitor {
+        return sources
+            .into_iter()
+            .find(|source| source.kind == CaptureSourceKind::Monitor);
+    }
+
     let mut games = sources
         .iter()
         .filter(|source| source.kind == CaptureSourceKind::Game);
     let detected_game = foreground
         .and_then(|pid| games.clone().find(|source| source.pid == Some(pid)))
         .or_else(|| games.next())?;
-
-    if method == CaptureMethod::Monitor {
-        return sources
-            .into_iter()
-            .find(|source| source.kind == CaptureSourceKind::Monitor);
-    }
 
     let mut selected = detected_game.clone();
     if method == CaptureMethod::Window {

@@ -12,6 +12,7 @@ This repository is a ground-up replacement for the older Electron/`obs-studio-no
 - Records full sessions manually or automatically for detected games.
 - Automatically prefers game capture and falls back to manual game/window/monitor selection.
 - Captures application/game audio and an optional microphone.
+- Shows the live OBS scene directly inside the Home capture panel on Windows using a native OBS display child window (no frame copies through JavaScript).
 - Stores ordinary media files under `Clipture/<Game>/<YYYY-MM-DD>/` with small `.clipture.json` sidecars.
 - Provides a local Clips / Recordings library and quick, non-destructive trimming.
 - Never removes clips automatically. Optional storage-budget cleanup only targets unprotected full recordings.
@@ -28,7 +29,7 @@ React / TypeScript
             ├─ CaptureController
             │    └─ dedicated OBS worker thread
             │         ├─ libobs-simple: replay / recording / common capture
-            │         └─ libobs-wrapper: context / scene / capability discovery
+            │         └─ libobs-wrapper: context / scene / native preview / capability discovery
             ├─ LibraryStore
             │    └─ normal media files + .clipture.json sidecars
             └─ SettingsStore
@@ -46,7 +47,7 @@ libobs-wrapper = { git = "https://github.com/libobs-rs/libobs-rs", branch = "mai
 libobs-bootstrapper = { git = "https://github.com/libobs-rs/libobs-rs", branch = "main" }
 ```
 
-On Windows, `libobs-bootstrapper` provisions a compatible official OBS runtime before the first OBS call and the build script enables delay-loading of `obs.dll`. The old dummy-DLL/updater path is gone.
+On Windows, `libobs-bootstrapper` provisions a compatible official OBS runtime before the first OBS call and the build script enables delay-loading of `obs.dll`. The old dummy-DLL/updater path is gone. The Home preview uses `libobs-wrapper::display` to render the OBS main texture into a child HWND whose bounds are synchronized to the React preview slot; the display is explicitly removed before its parent Tauri window is destroyed.
 
 On Linux, use a system/source-built libobs installation. The code keeps platform-specific capture behind the engine adapter so Windows remains the primary target without making the rest of the application Windows-specific.
 

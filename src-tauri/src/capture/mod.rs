@@ -28,6 +28,17 @@ pub struct PendingClip {
     pub requested_at: i64,
     pub saves_at: i64,
 }
+
+#[derive(Debug, Clone)]
+#[cfg_attr(not(windows), allow(dead_code))]
+pub struct PreviewTarget {
+    pub parent_hwnd: usize,
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+    pub visible: bool,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CapturePhase {

@@ -19,7 +19,7 @@ use uuid::Uuid;
 
 use capture::{
     CaptureSnapshot, CaptureSource, CaptureSourceKind, ObsCapabilitiesSnapshot, PendingClip,
-    engine::CaptureController,
+    PreviewTarget, engine::CaptureController,
 };
 use domain::{
     library::{LibraryItem, LibraryStore, MediaKind, TrimRequest},
@@ -72,6 +72,43 @@ fn list_sources() -> Result<Vec<CaptureSource>, String> {
 #[tauri::command]
 fn obs_capabilities(state: tauri::State<'_, AppState>) -> Result<ObsCapabilitiesSnapshot, String> {
     state.capture.capabilities()
+}
+
+#[tauri::command]
+fn update_preview(
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, AppState>,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    visible: bool,
+) -> Result<bool, String> {
+    if ![x, y, width, height].into_iter().all(f64::is_finite) {
+        return Err("Preview bounds must be finite numbers".into());
+    }
+    let scale = window.scale_factor().map_err(|error| error.to_string())?;
+    let scaled_i32 = |value: f64| {
+        (value * scale)
+            .round()
+            .clamp(i32::MIN as f64, i32::MAX as f64) as i32
+    };
+    let scaled_u32 =
+        |value: f64| (value.max(0.0) * scale).round().clamp(0.0, u32::MAX as f64) as u32;
+
+    #[cfg(windows)]
+    let parent_hwnd = window.hwnd().map_err(|error| error.to_string())?.0 as usize;
+    #[cfg(not(windows))]
+    let parent_hwnd = 0;
+
+    state.capture.update_preview(PreviewTarget {
+        parent_hwnd,
+        x: scaled_i32(x),
+        y: scaled_i32(y),
+        width: scaled_u32(width),
+        height: scaled_u32(height),
+        visible,
+    })
 }
 #[tauri::command]
 fn toggle_replay(app: AppHandle, state: tauri::State<'_, AppState>) -> Result<(), String> {
@@ -421,7 +458,14 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
                     let _ = toggle_recording_inner(app).await;
                 });
             }
-            "quit" => app.exit(0),
+            "quit" => {
+                if let Some(state) = app.try_state::<AppState>()
+                    && let Err(error) = state.capture.destroy_preview()
+                {
+                    log::warn!("Could not destroy OBS preview before tray quit: {error}");
+                }
+                app.exit(0);
+            }
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
@@ -553,7 +597,9 @@ pub fn run() {
                 auto_source: AtomicBool::new(true),
             };
             app.manage(state);
-            register_shortcuts(app.handle(), &settings).map_err(anyhow::Error::msg)?;
+            if let Err(error) = register_shortcuts(app.handle(), &settings) {
+                log::warn!("Global hotkeys are unavailable at startup: {error}");
+            }
             setup_tray(app)?;
             if std::env::args().any(|argument| argument == "--minimized")
                 && let Some(window) = app.get_webview_window("main")
@@ -598,12 +644,17 @@ pub fn run() {
                             if keep_running {
                                 let _ = window.hide();
                             } else {
+                                if let Err(error) = state.capture.destroy_preview() {
+                                    log::warn!("Could not destroy OBS preview before exit: {error}");
+                                }
                                 app.exit(0);
                             }
                         });
                 } else if behavior.close_to_tray {
                     api.prevent_close();
                     let _ = window.hide();
+                } else if let Err(error) = window.state::<AppState>().capture.destroy_preview() {
+                    log::warn!("Could not destroy OBS preview before window close: {error}");
                 }
             }
         })
@@ -612,6 +663,7 @@ pub fn run() {
             get_settings,
             list_sources,
             obs_capabilities,
+            update_preview,
             toggle_replay,
             select_source,
             save_clip,

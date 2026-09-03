@@ -51,6 +51,8 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
   return invoke<T>(command, args);
 }
 
+let previewQueue: Promise<unknown> = Promise.resolve();
+
 export const desktop = {
   async snapshot(): Promise<AppSnapshot> {
     if (!isTauri) return { capture: mockCapture, settings: mockSettings, recent: mockRecent, version: "0.1.0-dev" };
@@ -77,6 +79,12 @@ export const desktop = {
   },
   async obsCapabilities(): Promise<ObsCapabilitiesSnapshot> {
     return isTauri ? call("obs_capabilities") : mockCapabilities;
+  },
+  async updatePreview(bounds: { x: number; y: number; width: number; height: number; visible: boolean }): Promise<boolean> {
+    if (!isTauri) return false;
+    const request = previewQueue.then(() => call<boolean>("update_preview", bounds));
+    previewQueue = request.catch(() => false);
+    return request;
   },
   async sources(): Promise<CaptureSource[]> {
     if (!isTauri) return [

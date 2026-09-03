@@ -4,9 +4,13 @@ use crossbeam_channel::{Receiver, Sender, bounded, unbounded};
 use libobs_simple::{
     output::{
         replay::ObsContextReplayExt,
-        simple::{HardwareCodec, HardwarePreset, ObsContextSimpleExt, OutputFormat},
+        simple::{HardwareCodec, ObsContextSimpleExt, OutputFormat, X264Preset},
     },
     sources::ObsSourceBuilder,
+};
+#[cfg(windows)]
+use libobs_wrapper::display::{
+    ObsDisplayCreationData, ObsDisplayRef, ObsWindowHandle, ShowHideTrait, WindowPositionTrait,
 };
 use libobs_wrapper::{
     capabilities::{EncoderKind, ListValue, PropertyKind, PropertyMetadata},
@@ -27,6 +31,7 @@ use crate::{
     capture::{
         CapturePhase, CaptureSnapshot, CaptureSource, CaptureSourceKind, ObsCapabilitiesSnapshot,
         ObsEncoderCapability, ObsOption, ObsPropertySchema, ObsSourceCapability, PendingClip,
+        PreviewTarget,
     },
     domain::settings::AppSettings,
 };
@@ -42,6 +47,8 @@ enum Command {
     ToggleReplay(Sender<std::result::Result<(), String>>),
     SaveReplay(Sender<std::result::Result<PathBuf, String>>),
     Capabilities(Sender<std::result::Result<ObsCapabilitiesSnapshot, String>>),
+    UpdatePreview(PreviewTarget, Sender<std::result::Result<bool, String>>),
+    DestroyPreview(Sender<std::result::Result<(), String>>),
     Reconfigure(
         AppSettings,
         PathBuf,
@@ -104,6 +111,12 @@ impl CaptureController {
     pub fn capabilities(&self) -> std::result::Result<ObsCapabilitiesSnapshot, String> {
         self.request(Command::Capabilities)
     }
+    pub fn update_preview(&self, target: PreviewTarget) -> std::result::Result<bool, String> {
+        self.request(|reply| Command::UpdatePreview(target, reply))
+    }
+    pub fn destroy_preview(&self) -> std::result::Result<(), String> {
+        self.request(Command::DestroyPreview)
+    }
     pub fn reconfigure(
         &self,
         settings: AppSettings,
@@ -122,6 +135,10 @@ struct Engine {
     settings: AppSettings,
     buffer_dir: PathBuf,
     state: Arc<RwLock<CaptureSnapshot>>,
+    #[cfg(windows)]
+    preview: Option<ObsDisplayRef>,
+    #[cfg(windows)]
+    preview_parent_hwnd: Option<usize>,
 }
 impl Engine {
     fn video_info(settings: &AppSettings) -> libobs_wrapper::data::video::ObsVideoInfo {
@@ -167,6 +184,10 @@ impl Engine {
             settings,
             buffer_dir,
             state,
+            #[cfg(windows)]
+            preview: None,
+            #[cfg(windows)]
+            preview_parent_hwnd: None,
         };
         if engine.settings.replay.enabled && engine.settings.replay.auto_start {
             engine.start_replay()?;
@@ -198,6 +219,16 @@ impl Engine {
                 Command::Capabilities(reply) => {
                     let _ = reply.send(self.capabilities_snapshot().map_err(|e| format!("{e:#}")));
                 }
+                Command::UpdatePreview(target, reply) => {
+                    let _ = reply.send(
+                        self.update_preview(target)
+                            .map_err(|error| format!("{error:#}")),
+                    );
+                }
+                Command::DestroyPreview(reply) => {
+                    let _ =
+                        reply.send(self.destroy_preview().map_err(|error| format!("{error:#}")));
+                }
                 Command::Reconfigure(settings, buffer_dir, reply) => {
                     let _ = reply.send(
                         self.reconfigure(settings, buffer_dir)
@@ -206,7 +237,73 @@ impl Engine {
                 }
             }
         }
+        self.stop_all();
     }
+
+    #[cfg(windows)]
+    fn update_preview(&mut self, target: PreviewTarget) -> Result<bool> {
+        if target.width < 2 || target.height < 2 || !target.visible {
+            if let Some(preview) = self.preview.as_mut() {
+                preview.hide()?;
+            }
+            return Ok(true);
+        }
+
+        if self.preview_parent_hwnd != Some(target.parent_hwnd) {
+            self.destroy_preview()?;
+        }
+
+        if self.preview.is_none() {
+            let handle = unsafe {
+                // SAFETY: Tauri supplied this live HWND for the main window. Clipture removes
+                // the OBS display before that window is allowed to close.
+                ObsWindowHandle::new_from_handle(target.parent_hwnd as *mut std::ffi::c_void)
+            };
+            let data = ObsDisplayCreationData::new(
+                handle,
+                target.x,
+                target.y,
+                target.width,
+                target.height,
+            )
+            .set_background_color(0x000000);
+            let mut preview = self.context.display(data)?;
+            preview.set_render_at_bottom(false)?;
+            preview.show()?;
+            self.preview = Some(preview);
+            self.preview_parent_hwnd = Some(target.parent_hwnd);
+            return Ok(true);
+        }
+
+        let preview = self.preview.as_mut().expect("preview checked above");
+        preview.set_pos(target.x, target.y)?;
+        preview.set_size(target.width, target.height)?;
+        if !preview.is_visible()? {
+            preview.show()?;
+        }
+        Ok(true)
+    }
+
+    #[cfg(not(windows))]
+    fn update_preview(&mut self, _target: PreviewTarget) -> Result<bool> {
+        Ok(false)
+    }
+
+    #[cfg(windows)]
+    fn destroy_preview(&mut self) -> Result<()> {
+        if let Some(preview) = self.preview.take() {
+            self.context.remove_display(&preview)?;
+            drop(preview);
+        }
+        self.preview_parent_hwnd = None;
+        Ok(())
+    }
+
+    #[cfg(not(windows))]
+    fn destroy_preview(&mut self) -> Result<()> {
+        Ok(())
+    }
+
     fn start_replay(&mut self) -> Result<()> {
         if self.replay.is_some() {
             return Ok(());
@@ -225,7 +322,7 @@ impl Engine {
             .max_size_mb(self.settings.replay.max_size_mb as i64)
             .video_bitrate(self.settings.recording.bitrate_kbps)
             .audio_bitrate(192)
-            .hardware_encoder(HardwareCodec::H264, HardwarePreset::Balanced)
+            .x264_encoder(X264Preset::VeryFast)
             .extension("mp4")
             .format("%CCYY-%MM-%DD_%hh-%mm-%ss")
             .build()?;
@@ -381,27 +478,35 @@ impl Engine {
         };
     }
     fn apply_encoder_override<T: ObsOutputTrait>(&self, output: &T, name: &str) -> Result<()> {
-        let Some(id) = self.settings.advanced.encoder.as_deref() else {
-            return Ok(());
-        };
         let capabilities = self.context.capabilities()?;
-        let Some(encoder) = capabilities.encoders().iter().find(|encoder| {
-            encoder.kind() == EncoderKind::Video
-                && !encoder.is_internal()
-                && !encoder.is_deprecated()
-                && encoder.id() == id
-        }) else {
+        let configured = self.settings.advanced.encoder.as_deref();
+        let configured_encoder = configured.and_then(|id| {
+            capabilities.encoders().iter().find(|encoder| {
+                encoder.kind() == EncoderKind::Video
+                    && !encoder.is_internal()
+                    && !encoder.is_deprecated()
+                    && encoder.codec() == Some("h264")
+                    && encoder.id() == id
+            })
+        });
+        if let Some(id) = configured
+            && configured_encoder.is_none()
+        {
             log::warn!(
-                "Configured video encoder '{id}' is unavailable; falling back to automatic selection"
-            );
-            return Ok(());
-        };
-        if encoder.codec() != Some("h264") {
-            anyhow::bail!(
-                "Selected encoder '{}' is not an H.264 encoder",
-                encoder.id()
+                "Configured video encoder '{id}' is unavailable or not H.264; falling back to automatic selection"
             );
         }
+        let encoder = configured_encoder.or_else(|| {
+            capabilities
+                .select_video_encoder()
+                .codec("h264")
+                .prefer_hardware()
+                .best_available()
+        });
+        let Some(encoder) = encoder else {
+            anyhow::bail!("No compatible H.264 video encoder is available")
+        };
+
         let mut settings = self.context.data()?;
         settings.set_string("rate_control", "CBR")?;
         settings.set_int("bitrate", self.settings.recording.bitrate_kbps as i64)?;
@@ -486,6 +591,9 @@ impl Engine {
     }
 
     fn stop_all(&mut self) {
+        if let Err(error) = self.destroy_preview() {
+            log::warn!("Could not destroy OBS preview during shutdown: {error}");
+        }
         if let Some(r) = self.recording.take() {
             let _ = r.stop();
         }

@@ -101,6 +101,7 @@ export default function App() {
         onToggleRecording={async () => { await desktop.toggleRecording(); await refresh(); }}
         onSelectSource={async (source) => { await desktop.selectSource(source); await refresh(); }}
         onOpenLibrary={() => setPage("library")}
+        previewEnabled={snapshot.settings.onboardingComplete}
       />}
       {page === "library" && <LibraryPage
         items={items}
