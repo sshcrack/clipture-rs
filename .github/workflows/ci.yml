@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main, master]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -25,22 +26,98 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     permissions:
-      contents: read
+      contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils libsimde-dev
+
+      - name: install OBS build dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config clang clang-format build-essential curl ccache git zsh \
+            libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev libavutil-dev \
+            libswresample-dev libswscale-dev libx264-dev libcurl4-openssl-dev libmbedtls-dev \
+            libgl1-mesa-dev libjansson-dev libluajit-5.1-dev python3-dev libx11-dev \
+            libxcb-randr0-dev libxcb-shm0-dev libxcb-xinerama0-dev libxcb-composite0-dev \
+            libxcomposite-dev libxinerama-dev libxcb1-dev libx11-xcb-dev libxcb-xfixes0-dev \
+            swig libcmocka-dev libxss-dev libglvnd-dev libgles2-mesa-dev libwayland-dev \
+            librist-dev libsrt-openssl-dev libpci-dev libpipewire-0.3-dev libqrcodegencpp-dev \
+            uthash-dev qt6-base-dev qt6-base-private-dev qt6-svg-dev qt6-wayland \
+            qt6-image-formats-plugins libasound2-dev libfdk-aac-dev libfontconfig-dev \
+            libfreetype6-dev libjack-jackd2-dev libpulse-dev libsndio-dev libspeexdsp-dev \
+            libudev-dev libv4l-dev libva-dev libvlc-dev libvpl-dev libdrm-dev \
+            nlohmann-json3-dev libwebsocketpp-dev libasio-dev libffmpeg-nvenc-dev xvfb ffmpeg \
+            libblas-dev libblas3 liblapack3 extra-cmake-modules
+          test -f /usr/share/ECM/cmake/ECMConfig.cmake
+          test -f /usr/include/simde/simde-common.h
+          sudo ln -sf /usr/lib/x86_64-linux-gnu/blas/libblas.so.3 /usr/lib/x86_64-linux-gnu/libblas.so.3 || true
+          sudo ln -sf /usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3 /usr/lib/x86_64-linux-gnu/liblapack.so.3 || true
+
+      - name: Cache OBS Studio Installation (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        id: obs-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/obs-install
+          key: ${{ runner.os }}-obs-studio-32.1.0-v1
+          restore-keys: |
+            ${{ runner.os }}-obs-studio-
+
+      - name: Build and Install OBS Studio from Source (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04' && steps.obs-cache.outputs.cache-hit != 'true'
+        run: |
+          OBS_VERSION="32.1.0"
+          echo "Building OBS Studio version: $OBS_VERSION"
+          git clone --recursive --depth 1 --branch "$OBS_VERSION" \
+            https://github.com/obsproject/obs-studio.git /tmp/obs-studio
+          cd /tmp/obs-studio
+          cmake --preset ubuntu \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/obs-install \
+            -DENABLE_BROWSER=OFF
+          cmake --build build_ubuntu --parallel $(nproc)
+          cmake --install build_ubuntu
+
+      - name: Set up OBS environment for Linux (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          export PKG_CONFIG_PATH="${{ github.workspace }}/obs-install/lib/pkgconfig:${{ github.workspace }}/obs-install/lib/x86_64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH"
+          export LD_LIBRARY_PATH="${{ github.workspace }}/obs-install/lib:${{ github.workspace }}/obs-install/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+          echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "${{github.workspace}}/obs-install/bin" >> $GITHUB_PATH
+          echo "RUSTFLAGS=-L ${{ github.workspace }}/obs-install/lib -L ${{ github.workspace }}/obs-install/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+          if pkg-config --exists libobs; then
+            echo "✓ libobs pkg-config validation passed: $(pkg-config --modversion libobs)"
+          else
+            echo "✗ libobs pkg-config validation failed"
+            find ${{ github.workspace }}/obs-install -name "libobs.pc" 2>/dev/null || true
+            exit 1
+          fi
+
+      - name: Set up virtual display for Linux (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          sleep 3
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
+      - name: install macOS dependencies
+        if: matrix.platform == 'macos-latest'
+        run: brew install simde
 
       - uses: pnpm/action-setup@v4
         with:
           version: 11.24.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: pnpm
@@ -50,6 +127,47 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+
+      - name: Cache cargo-obs-build Installation
+        uses: actions/cache@v4
+        id: cargo-obs-cache
+        with:
+          path: |
+            ~/.cargo/bin/cargo-obs-build
+            ~/.cargo/cache
+            obs-build
+          key: ${{ runner.os }}-cargo-obs-build-v2
+
+      - name: Install cargo-obs-build
+        if: matrix.platform != 'ubuntu-22.04'
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-obs-build
+
+      - name: Prepare OBS runtime (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          cargo obs-build build --out-dir src-tauri/target/debug/deps
+          cargo obs-build build --out-dir src-tauri/target/release/deps
+          # also ensure target/release contains framework for bundling
+          cargo obs-build build --out-dir src-tauri/target/release
+          test -f src-tauri/target/debug/deps/libobs.framework/Versions/A/libobs || test -f src-tauri/target/release/deps/libobs.framework/Versions/A/libobs || echo "OBS framework prepared"
+          # Rust test binaries use @rpath, ensure fallback for later steps
+          echo "DYLD_FALLBACK_FRAMEWORK_PATH=$PWD/src-tauri/target/debug/deps:$PWD/src-tauri/target/release/deps${DYLD_FALLBACK_FRAMEWORK_PATH:+:$DYLD_FALLBACK_FRAMEWORK_PATH}" >> $GITHUB_ENV
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare OBS runtime (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: cargo obs-build build --out-dir src-tauri/target/debug/deps --verbose
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare OBS runtime (Windows - release)
+        if: matrix.platform == 'windows-latest'
+        run: cargo obs-build build --out-dir src-tauri/target/release/deps --verbose
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - run: pnpm install --frozen-lockfile
 
